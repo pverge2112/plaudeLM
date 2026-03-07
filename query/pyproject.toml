@@ -1,20 +1,11 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+pythonpath = ["."]
 markers = [
-    "integration: requires real running services (Qdrant, Neo4j)",
+    "integration: mark test as requiring real running services (Qdrant, Neo4j, Kong)",
 ]
 
 [tool.mypy]
 python_version = "3.11"
 strict = true
-ignore_missing_imports = false
-
-[tool.black]
-line-length = 100
-target-version = ["py311"]
-
-[tool.ruff]
-line-length = 100
-target-version = "py311"
-select = ["E", "F", "I", "UP", "B", "C4"]

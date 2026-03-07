@@ -12,9 +12,9 @@ services:
     ports:
       - "11434:11434"
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:11434/api/tags"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/11434' || exit 1"]
+      interval: 15s
+      timeout: 5s
       retries: 5
       start_period: 20s
     restart: unless-stopped
@@ -79,6 +79,19 @@ services:
       WEBHOOK_URL: ${N8N_WEBHOOK_BASE_URL:-http://localhost:5678}
       DB_TYPE: sqlite
       GENERIC_TIMEZONE: ${TZ:-America/New_York}
+      N8N_SECURE_COOKIE: "false"
+      N8N_RUNNERS_ENABLED: "true"
+      NODE_FUNCTION_ALLOW_BUILTIN: "crypto"
+      # LLM endpoints used by ingest pipeline Code nodes.
+      # Dev default: Ollama direct (http://ollama:11434/api/*)
+      # Prod: set to Kong routes (http://kong:8000/notebooklm/*)
+      CHAT_ENDPOINT: ${CHAT_ENDPOINT:-http://ollama:11434/api/chat}
+      EMBED_ENDPOINT: ${EMBED_ENDPOINT:-http://ollama:11434/api/embed}
+      # Data store URLs — Docker service names (stable per IV.4)
+      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+      NEO4J_HTTP_URL: ${NEO4J_HTTP_URL:-http://neo4j:7474}
+      NEO4J_USER: ${NEO4J_USER:-neo4j}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
     volumes:
       - n8n_data:/home/node/.n8n
       - ./n8n/workflows:/workflows:ro
@@ -127,27 +140,32 @@ services:
 
   # ---------------------------------------------------------------------------
   # Query Service — FastAPI GraphRAG hybrid retrieval (Spec #3)
-  # Stub: build context not yet available
   # ---------------------------------------------------------------------------
-  # query:
-  #   build: ./query
-  #   container_name: notebooklm-query
-  #   image: notebooklm-query:latest
-  #   environment:
-  #     QDRANT_URL: ${QDRANT_URL}
-  #     NEO4J_URI: ${NEO4J_URI}
-  #     NEO4J_USER: ${NEO4J_USER}
-  #     NEO4J_PASSWORD: ${NEO4J_PASSWORD}
-  #     KONG_PROXY_URL: ${KONG_PROXY_URL}
-  #   ports:
-  #     - "8080:8080"
-  #   depends_on:
-  #     qdrant:
-  #       condition: service_healthy
-  #     neo4j:
-  #       condition: service_healthy
-  #     kong:
-  #       condition: service_healthy
+  query:
+    build: ./query
+    container_name: notebooklm-query
+    environment:
+      QDRANT_URL: ${QDRANT_URL}
+      NEO4J_URI: ${NEO4J_URI}
+      NEO4J_USER: ${NEO4J_USER}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+      KONG_PROXY_URL: ${KONG_PROXY_URL}
+    ports:
+      - "8000:8000"
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
 
   # ---------------------------------------------------------------------------
   # MCP Server — TypeScript MCP server (Spec #4)

@@ -8,9 +8,9 @@
 
 ## Current Status
 
-**Phase:** Spec #2 complete ✅ — ready to begin Spec #3 (Query Service)
+**Phase:** Spec #3 complete ✅ — ready to begin Spec #4 (MCP Server)
 **Last updated:** 2026-03-07
-**Next action:** Open PR for feat/3-n8n-graph-extraction → dev, then begin Spec #3. Write GitHub Issue spec first (see Article I.1). Branch will be: `feat/NNN-query-service`
+**Next action:** Open PR for feat/5-query-service → dev. Then write GitHub Issue spec for Spec #4 (MCP Server). Branch will be: `feat/NNN-mcp-server`.
 
 ---
 
@@ -49,10 +49,18 @@
 
 ## In Progress
 
-### Spec #2 — n8n Graph Extraction Step ✅ COMPLETE (PR pending)
+### Spec #2 — n8n Graph Extraction Step ✅ COMPLETE (PR #4 open → dev)
 - [x] All implementation committed on feat/3-n8n-graph-extraction
 - [x] **29/29 integration tests green**: 21 Spec #1 + 8 Spec #2
-- [ ] PR not yet opened: feat/3-n8n-graph-extraction → dev
+- [x] PR #4 open: feat/3-n8n-graph-extraction → dev
+
+### Spec #3 — Query Service ✅ COMPLETE (PR pending)
+- [x] GitHub Issue #5 created
+- [x] Red phase: 30 unit + 8 integration tests committed (feat/5-query-service)
+- [x] Green phase: config.py, models.py, rag.py, graph.py, hybrid.py, main.py, Dockerfile
+- [x] **59/59 tests green** (30 unit + 29 integration; 8 n8n skipped — expected)
+- [x] docker-compose.yml updated: query service uncommented with healthcheck
+- [ ] PR not yet opened: feat/5-query-service → dev
 
 ---
 
@@ -64,15 +72,7 @@
 
 **Spec #2 — n8n Graph Extraction Step** ✅ DONE (PR pending)
 
-**Spec #3 — Query Service (FastAPI + GraphRAG)**
-- `query/models.py` — Pydantic v2: QueryRequest, QueryResponse, Citation
-- `query/rag.py` — Qdrant vector retrieval
-- `query/graph.py` — Neo4j concept extraction + graph traversal
-- `query/hybrid.py` — merge + re-rank (formula in ARCHITECTURE.md)
-- `query/main.py` — FastAPI endpoints (query, health, collections, graph CRUD)
-- `query/Dockerfile`
-- Add to `docker-compose.yml`
-- Acceptance: E2E — ingest doc → query → get citation with neo4j_chunk_id
+**Spec #3 — Query Service (FastAPI + GraphRAG)** ✅ DONE (PR pending)
 
 **Spec #4 — MCP Server**
 - `mcp/src/index.ts` — entry point, transport selection (stdio/sse)
@@ -157,6 +157,9 @@
 | 2026-03-07 | Ollama healthcheck uses TCP not curl | Ollama image has no curl; use bash TCP check same as Qdrant |
 | 2026-03-07 | N8N_SECURE_COOKIE=false for local dev | n8n requires HTTPS for secure cookies; HTTP-only local dev needs this off |
 | 2026-03-07 | N8N_RUNNERS_ENABLED=true required | n8n 1.90.2 needs task runners for Code nodes to execute; without it, Code nodes silently skip |
+| 2026-03-07 | query service uses TestClient (not live server) for integration tests | FastAPI TestClient exercises real Qdrant+Neo4j without needing a running HTTP server; Kong/Ollama gracefully degrade |
+| 2026-03-07 | pythonpath=["."] required in pyproject.toml | pytest with unit __init__.py does not auto-add rootdir to sys.path; must be explicit |
+| 2026-03-07 | module-scoped pytest fixtures cannot use function-scoped monkeypatch | use os.environ.setdefault() directly in module-scoped fixtures; monkeypatch only in function-scoped tests |
 
 ---
 

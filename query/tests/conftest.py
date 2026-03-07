@@ -2,10 +2,11 @@
 Pytest configuration for query service tests.
 
 Integration tests require:
-  TEST_NEO4J_URI   — Neo4j Bolt URI (e.g. bolt://localhost:7687)
-  TEST_NEO4J_USER  — Neo4j username
+  TEST_NEO4J_URI      — Neo4j Bolt URI (e.g. bolt://localhost:7687)
+  TEST_NEO4J_USER     — Neo4j username
   TEST_NEO4J_PASSWORD — Neo4j password
-  TEST_QDRANT_URL  — Qdrant REST URL (e.g. http://localhost:6333)
+  TEST_QDRANT_URL     — Qdrant REST URL (e.g. http://localhost:6333)
+  TEST_N8N_WEBHOOK_URL — n8n ingest webhook base URL (e.g. http://localhost:5678/webhook)
 
 These must point to a test instance, never production.
 """
@@ -47,4 +48,12 @@ def qdrant_url() -> str:
     url = os.environ.get("TEST_QDRANT_URL")
     if not url:
         pytest.skip("TEST_QDRANT_URL not set — skipping integration test")
+    return url
+
+
+@pytest.fixture(scope="session")
+def n8n_webhook_url() -> str:
+    url = os.environ.get("TEST_N8N_WEBHOOK_URL")
+    if not url:
+        pytest.skip("TEST_N8N_WEBHOOK_URL not set — skipping integration test")
     return url
