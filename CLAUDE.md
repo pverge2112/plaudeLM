@@ -8,6 +8,15 @@
 
 ---
 
+## Task Board (beads)
+
+- **Session start:** always run `bd ready` before any work
+- **Before coding:** `bd update <id> --status=in_progress`
+- **After completing:** `bd update <id> --status=closed`
+- Only work on tasks shown in `bd ready` — blocked tasks are blocked for a reason
+
+---
+
 ## Project Overview
 
 A fully local, self-hosted **GraphRAG** knowledge base exposed via an **MCP server**.
