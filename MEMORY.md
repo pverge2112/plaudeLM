@@ -8,9 +8,9 @@
 
 ## Current Status
 
-**Phase:** Architecture complete → Spec writing next  
-**Last updated:** 2026-03-07  
-**Next action:** Write specs (GitHub Issues) for Neo4j setup, MCP server, and Query service before any implementation begins (CONSTITUTION.md Article I.1)
+**Phase:** Spec #2 written → red phase next
+**Last updated:** 2026-03-07
+**Next action:** Create branch `feat/3-n8n-graph-extraction` off dev, write failing integration tests (red phase) for Spec #2
 
 ---
 
@@ -28,6 +28,16 @@
 - [x] `.env.example` — all required variables documented
 - [x] `scripts/pull-models.sh` — pulls `nomic-embed-text` + `llama3.2`
 - [x] `scripts/init-qdrant.py` — creates `kong`, `personal`, `music` collections (768-dim, Cosine)
+
+### Infrastructure (Spec #1 — complete, PR #2 open → dev)
+- [x] `docker-compose.yml` — Ollama, Qdrant v1.13.5, Neo4j 5 Community, n8n, Kong; stubs for query + notebooklm-mcp
+- [x] `.env.example` — all required variables documented
+- [x] `scripts/init-neo4j.py` — idempotent: 4 constraints, 3 range indexes, 1 full-text index
+- [x] `scripts/init-qdrant.py` — idempotent: kong/personal/music (768-dim, Cosine)
+- [x] `query/tests/integration/test_neo4j.py` — 10 integration tests, all green
+- [x] `query/tests/integration/test_qdrant.py` — 11 integration tests, all green
+- [x] `docs/specs/SPEC-001-neo4j-infrastructure.md` — spec committed
+- [x] GitHub Issue #1 created, PR #2 open
 
 ### Ingest Pipeline (n8n — foundation)
 - [x] `n8n/workflows/ingest-pipeline.json` — importable n8n workflow
@@ -56,13 +66,9 @@ Nothing — spec writing must happen before implementation resumes.
 
 ### SPEC WRITING FIRST — create GitHub Issues before any implementation
 
-**Spec #1 — Neo4j Infrastructure**
-- Add Neo4j to `docker-compose.yml`
-- `scripts/init-neo4j.py` — constraints + indexes
-- Update `.env.example` with Neo4j vars
-- Acceptance: Neo4j starts healthy, constraints verified via Cypher
+**Spec #1 — Neo4j Infrastructure** ✅ DONE (PR #2)
 
-**Spec #2 — n8n Graph Extraction Step**
+**Spec #2 — n8n Graph Extraction Step** (GitHub Issue #3, docs/specs/SPEC-002-n8n-graph-extraction.md)
 - Add graph extraction node to ingest pipeline after summarization
 - llama3.2 prompt returns `{ concepts[], relationships[], events[] }` JSON
 - Write to Neo4j: Document, Chunk, Concept nodes + edges
@@ -172,6 +178,16 @@ Nothing — spec writing must happen before implementation resumes.
 ---
 
 ## Session Notes
+
+### 2026-03-07 — Spec #1 implementation session
+- Repo initialized, pushed to GitHub (public), branch protection on main, dev branch created
+- Spec #1 written: GitHub Issue #1, docs/specs/SPEC-001-neo4j-infrastructure.md
+- Red phase: 21 failing integration tests committed
+- Green phase: docker-compose.yml, .env.example, init-neo4j.py, init-qdrant.py implemented
+- Fixed: Neo4j pagecache env var (single not double underscore), Qdrant healthcheck (bash TCP — no curl in image)
+- Pinned qdrant-client~=1.13.0 to match server v1.13.5; pinned image to qdrant/qdrant:v1.13.5
+- 21/21 integration tests green, PR #2 open feat/1-neo4j-infrastructure → dev
+- IMPORTANT: never use --remove-orphans flag; it stops containers from other compose projects
 
 ### 2026-03-07 — Initial build session
 - Full stack designed and scaffolded
