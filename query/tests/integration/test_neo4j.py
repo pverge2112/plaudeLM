@@ -148,8 +148,8 @@ def test_constraint_count_stable_after_second_init(
     neo4j_uri: str, neo4j_user: str, neo4j_password: str
 ) -> None:
     """Running init-neo4j.py a second time does not create duplicate constraints."""
-    import subprocess
     import os
+    import subprocess
 
     env = {
         **os.environ,
@@ -166,19 +166,12 @@ def test_constraint_count_stable_after_second_init(
     )
     cnt_before = rows_before[0]["cnt"]
 
-    result = subprocess.run(
-        ["python3", "scripts/init-neo4j.py"],
-        capture_output=True,
-        text=True,
-        env=env,
-        cwd="/".join(neo4j_uri.split("/")[:-1]),  # project root resolved via env
-    )
-    # Use project root instead — resolve via env var or fallback
     import pathlib
+    import sys
 
     project_root = pathlib.Path(__file__).parents[3]
     result = subprocess.run(
-        ["python3", str(project_root / "scripts" / "init-neo4j.py")],
+        [sys.executable, str(project_root / "scripts" / "init-neo4j.py")],
         capture_output=True,
         text=True,
         env=env,

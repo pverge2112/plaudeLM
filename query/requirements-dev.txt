@@ -5,7 +5,7 @@ pytest-cov>=5.0
 
 # Service clients (used in integration tests)
 neo4j>=5.18
-qdrant-client>=1.9
+qdrant-client~=1.13.0
 
 # Type checking
 mypy>=1.9

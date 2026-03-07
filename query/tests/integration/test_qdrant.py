@@ -81,11 +81,13 @@ def test_init_qdrant_is_idempotent(qdrant_url: str) -> None:
     import os
     import pathlib
 
+    import sys
+
     project_root = pathlib.Path(__file__).parents[3]
     env = {**os.environ, "QDRANT_URL": qdrant_url}
 
     result = subprocess.run(
-        ["python3", str(project_root / "scripts" / "init-qdrant.py")],
+        [sys.executable, str(project_root / "scripts" / "init-qdrant.py")],
         capture_output=True,
         text=True,
         env=env,
