@@ -1,6 +1,7 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+pythonpath = ["."]
 markers = [
     "integration: mark test as requiring real running services (Qdrant, Neo4j, Kong)",
 ]

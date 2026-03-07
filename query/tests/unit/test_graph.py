@@ -39,8 +39,9 @@ class TestExtractConcepts:
 
         call_args = mock_client.post.call_args
         assert call_args[0][0] == "http://kong:8000/notebooklm/chat"
-        assert "GraphRAG" in concepts
-        assert "Neo4j" in concepts
+        # Implementation normalizes concepts to lowercase
+        assert "graphrag" in concepts
+        assert "neo4j" in concepts
 
     async def test_extract_concepts_returns_empty_list_on_malformed_json(self) -> None:
         """extract_concepts returns [] when the LLM returns non-JSON (graceful degradation)."""
@@ -91,21 +92,26 @@ class TestExtractConcepts:
         assert concepts == []
 
 
+def _mock_neo4j_driver(records: list[dict[str, object]]) -> MagicMock:
+    """Build a mock AsyncGraphDatabase driver that returns the given records."""
+    mock_result = MagicMock()
+    mock_result.data = MagicMock(return_value=records)
+
+    mock_session = AsyncMock()
+    mock_session.run = AsyncMock(return_value=mock_result)
+    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_session.__aexit__ = AsyncMock(return_value=None)
+
+    mock_driver = MagicMock()
+    mock_driver.session = MagicMock(return_value=mock_session)
+    mock_driver.close = AsyncMock()  # close() is async in AsyncDriver
+    return mock_driver
+
+
 class TestGraphTraversal:
     async def test_graph_traversal_returns_chunks_with_hop_distance(self) -> None:
         """traverse returns GraphResult objects with chunk_id and hop_distance."""
-        mock_record = {"chunk_id": "chunk-uuid-1", "hop_distance": 1}
-
-        mock_result = MagicMock()
-        mock_result.data = MagicMock(return_value=[mock_record])
-
-        mock_session = AsyncMock()
-        mock_session.run = AsyncMock(return_value=mock_result)
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-
-        mock_driver = MagicMock()
-        mock_driver.session = MagicMock(return_value=mock_session)
+        mock_driver = _mock_neo4j_driver([{"chunk_id": "chunk-uuid-1", "hop_distance": 1}])
 
         with patch("graph.AsyncGraphDatabase.driver", return_value=mock_driver):
             retriever = GraphRetriever(
@@ -122,16 +128,8 @@ class TestGraphTraversal:
 
     async def test_graph_traversal_scopes_query_to_notebook(self) -> None:
         """traverse passes the notebook parameter to filter chunks by notebook property."""
-        mock_result = MagicMock()
-        mock_result.data = MagicMock(return_value=[])
-
-        mock_session = AsyncMock()
-        mock_session.run = AsyncMock(return_value=mock_result)
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-
-        mock_driver = MagicMock()
-        mock_driver.session = MagicMock(return_value=mock_session)
+        mock_driver = _mock_neo4j_driver([])
+        mock_session = mock_driver.session.return_value
 
         with patch("graph.AsyncGraphDatabase.driver", return_value=mock_driver):
             retriever = GraphRetriever(
@@ -147,16 +145,7 @@ class TestGraphTraversal:
 
     async def test_graph_traversal_returns_empty_list_when_no_concepts_matched(self) -> None:
         """traverse returns [] when no Concept nodes match — not an error."""
-        mock_result = MagicMock()
-        mock_result.data = MagicMock(return_value=[])
-
-        mock_session = AsyncMock()
-        mock_session.run = AsyncMock(return_value=mock_result)
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-
-        mock_driver = MagicMock()
-        mock_driver.session = MagicMock(return_value=mock_session)
+        mock_driver = _mock_neo4j_driver([])
 
         with patch("graph.AsyncGraphDatabase.driver", return_value=mock_driver):
             retriever = GraphRetriever(

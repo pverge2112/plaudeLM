@@ -3,7 +3,8 @@ Integration tests for the FastAPI query service (Spec #3).
 
 Tests exercise the app via FastAPI TestClient against real Qdrant and Neo4j instances.
 Kong/Ollama calls are NOT required for most tests — the query endpoint gracefully
-returns empty results when no chunks are found.
+returns empty results when no chunks are found, and the /health and /collections
+endpoints do not call Kong at all.
 
 Requires running services and environment variables:
   TEST_QDRANT_URL      http://localhost:6333
@@ -25,28 +26,31 @@ import pytest
 from fastapi.testclient import TestClient
 
 
-@pytest.fixture(scope="module")
-def app_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Propagate TEST_* env vars to the service env vars before importing the app."""
-    mapping = {
+def _set_service_env_from_test_env() -> bool:
+    """Copy TEST_* vars into the service env vars. Returns False if required vars missing."""
+    required = {
         "QDRANT_URL": os.environ.get("TEST_QDRANT_URL", ""),
         "NEO4J_URI": os.environ.get("TEST_NEO4J_URI", ""),
-        "NEO4J_USER": os.environ.get("TEST_NEO4J_USER", "neo4j"),
         "NEO4J_PASSWORD": os.environ.get("TEST_NEO4J_PASSWORD", ""),
-        "KONG_PROXY_URL": os.environ.get("TEST_KONG_PROXY_URL", "http://localhost:8000"),
     }
-    for key, val in mapping.items():
-        if val:
-            monkeypatch.setenv(key, val)
+    if not all(required.values()):
+        return False
+
+    os.environ.setdefault("QDRANT_URL", required["QDRANT_URL"])
+    os.environ.setdefault("NEO4J_URI", required["NEO4J_URI"])
+    os.environ.setdefault("NEO4J_USER", os.environ.get("TEST_NEO4J_USER", "neo4j"))
+    os.environ.setdefault("NEO4J_PASSWORD", required["NEO4J_PASSWORD"])
+    os.environ.setdefault(
+        "KONG_PROXY_URL", os.environ.get("TEST_KONG_PROXY_URL", "http://localhost:8000")
+    )
+    return True
 
 
 @pytest.fixture(scope="module")
-def client(app_env: None) -> TestClient:
+def client() -> TestClient:
     """Create a TestClient for the FastAPI app with real service env vars set."""
-    required = ["TEST_QDRANT_URL", "TEST_NEO4J_URI", "TEST_NEO4J_PASSWORD"]
-    for var in required:
-        if not os.environ.get(var):
-            pytest.skip(f"{var} not set — skipping integration test")
+    if not _set_service_env_from_test_env():
+        pytest.skip("TEST_QDRANT_URL / TEST_NEO4J_URI / TEST_NEO4J_PASSWORD not set")
 
     from main import app
 
@@ -141,7 +145,6 @@ def test_collections_endpoint_returns_all_three_notebooks(client: TestClient) ->
 def test_config_raises_on_missing_qdrant_url(monkeypatch: pytest.MonkeyPatch) -> None:
     """Config() raises RuntimeError when QDRANT_URL is not set."""
     monkeypatch.delenv("QDRANT_URL", raising=False)
-    # Force reimport to bypass module-level caching
     import importlib
 
     import config
@@ -154,6 +157,8 @@ def test_config_raises_on_missing_qdrant_url(monkeypatch: pytest.MonkeyPatch) ->
 @pytest.mark.integration
 def test_config_raises_on_missing_neo4j_uri(monkeypatch: pytest.MonkeyPatch) -> None:
     """Config() raises RuntimeError when NEO4J_URI is not set."""
+    # Ensure QDRANT_URL is set so we reach the NEO4J_URI validation
+    monkeypatch.setenv("QDRANT_URL", "http://qdrant:6333")
     monkeypatch.delenv("NEO4J_URI", raising=False)
     import importlib
 

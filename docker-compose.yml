@@ -140,27 +140,32 @@ services:
 
   # ---------------------------------------------------------------------------
   # Query Service — FastAPI GraphRAG hybrid retrieval (Spec #3)
-  # Stub: build context not yet available
   # ---------------------------------------------------------------------------
-  # query:
-  #   build: ./query
-  #   container_name: notebooklm-query
-  #   image: notebooklm-query:latest
-  #   environment:
-  #     QDRANT_URL: ${QDRANT_URL}
-  #     NEO4J_URI: ${NEO4J_URI}
-  #     NEO4J_USER: ${NEO4J_USER}
-  #     NEO4J_PASSWORD: ${NEO4J_PASSWORD}
-  #     KONG_PROXY_URL: ${KONG_PROXY_URL}
-  #   ports:
-  #     - "8080:8080"
-  #   depends_on:
-  #     qdrant:
-  #       condition: service_healthy
-  #     neo4j:
-  #       condition: service_healthy
-  #     kong:
-  #       condition: service_healthy
+  query:
+    build: ./query
+    container_name: notebooklm-query
+    environment:
+      QDRANT_URL: ${QDRANT_URL}
+      NEO4J_URI: ${NEO4J_URI}
+      NEO4J_USER: ${NEO4J_USER}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+      KONG_PROXY_URL: ${KONG_PROXY_URL}
+    ports:
+      - "8000:8000"
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
 
   # ---------------------------------------------------------------------------
   # MCP Server — TypeScript MCP server (Spec #4)
