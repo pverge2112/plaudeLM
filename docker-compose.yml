@@ -1,0 +1,184 @@
+services:
+
+  # ---------------------------------------------------------------------------
+  # Ollama — local LLM inference (llama3.2, nomic-embed-text)
+  # Never called directly — always via Kong AI Gateway
+  # ---------------------------------------------------------------------------
+  ollama:
+    image: ollama/ollama:latest
+    container_name: notebooklm-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Qdrant — vector store (one collection per notebook: kong, personal, music)
+  # ---------------------------------------------------------------------------
+  qdrant:
+    image: qdrant/qdrant:v1.13.5
+    container_name: notebooklm-qdrant
+    volumes:
+      - qdrant_data:/qdrant/storage
+    ports:
+      - "6333:6333"   # REST
+      - "6334:6334"   # gRPC
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6333' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Neo4j 5 Community — knowledge graph
+  # Single unified graph; nodes scoped by `notebook` property
+  # ---------------------------------------------------------------------------
+  neo4j:
+    image: neo4j:5-community
+    container_name: notebooklm-neo4j
+    environment:
+      NEO4J_AUTH: ${NEO4J_AUTH}
+      NEO4J_server_memory_heap_max__size: ${NEO4J_HEAP_MAX:-1G}
+      NEO4J_server_memory_pagecache_size: ${NEO4J_PAGECACHE:-512M}
+      NEO4J_server_default__listen__address: 0.0.0.0
+      NEO4J_PLUGINS: '[]'
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    ports:
+      - "7474:7474"   # Browser / HTTP
+      - "7687:7687"   # Bolt
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:7474"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # n8n — ingest pipeline orchestration
+  # ---------------------------------------------------------------------------
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: notebooklm-n8n
+    environment:
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      N8N_HOST: ${N8N_HOST:-localhost}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: ${N8N_WEBHOOK_BASE_URL:-http://localhost:5678}
+      DB_TYPE: sqlite
+      GENERIC_TIMEZONE: ${TZ:-America/New_York}
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n/workflows:/workflows:ro
+    ports:
+      - "5678:5678"
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:5678/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Kong AI Gateway — routes all LLM/embedding calls to Ollama
+  # Provides observability, rate limiting, PII sanitization
+  # ---------------------------------------------------------------------------
+  kong:
+    image: kong/kong-gateway:latest
+    container_name: notebooklm-kong
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/declarative/kong.yaml
+      KONG_PROXY_LISTEN: 0.0.0.0:8000
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+      KONG_LOG_LEVEL: ${KONG_LOG_LEVEL:-warn}
+    volumes:
+      - ./kong:/kong/declarative:ro
+    ports:
+      - "8000:8000"   # Proxy
+      - "8001:8001"   # Admin API
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Query Service — FastAPI GraphRAG hybrid retrieval (Spec #3)
+  # Stub: build context not yet available
+  # ---------------------------------------------------------------------------
+  # query:
+  #   build: ./query
+  #   container_name: notebooklm-query
+  #   image: notebooklm-query:latest
+  #   environment:
+  #     QDRANT_URL: ${QDRANT_URL}
+  #     NEO4J_URI: ${NEO4J_URI}
+  #     NEO4J_USER: ${NEO4J_USER}
+  #     NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+  #     KONG_PROXY_URL: ${KONG_PROXY_URL}
+  #   ports:
+  #     - "8080:8080"
+  #   depends_on:
+  #     qdrant:
+  #       condition: service_healthy
+  #     neo4j:
+  #       condition: service_healthy
+  #     kong:
+  #       condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # MCP Server — TypeScript MCP server (Spec #4)
+  # Stub: build context not yet available
+  # ---------------------------------------------------------------------------
+  # notebooklm-mcp:
+  #   build: ./mcp
+  #   container_name: notebooklm-mcp
+  #   image: notebooklm-mcp:latest
+  #   environment:
+  #     MCP_TRANSPORT: ${MCP_TRANSPORT:-stdio}
+  #     MCP_PORT: ${MCP_PORT:-3000}
+  #     QUERY_SERVICE_URL: ${QUERY_SERVICE_URL}
+  #     QDRANT_URL: ${QDRANT_URL}
+  #     NEO4J_URI: ${NEO4J_URI}
+  #     NEO4J_USER: ${NEO4J_USER}
+  #     NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+  #     N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL}
+  #   ports:
+  #     - "3000:3000"
+  #   depends_on:
+  #     - query
+
+volumes:
+  ollama_data:
+    name: notebooklm-ollama-data
+  qdrant_data:
+    name: notebooklm-qdrant-data
+  neo4j_data:
+    name: notebooklm-neo4j-data
+  neo4j_logs:
+    name: notebooklm-neo4j-logs
+  n8n_data:
+    name: notebooklm-n8n-data
