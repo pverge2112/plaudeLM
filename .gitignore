@@ -63,6 +63,11 @@ coverage/
 junit.xml
 test-results/
 
+# Tool runtime dirs
+.beads/
+.vexp/
+.specify/
+
 # Audio output
 *.mp3
 *.wav
