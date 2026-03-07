@@ -8,9 +8,9 @@
 
 ## Current Status
 
-**Phase:** Spec #3 complete ✅ — ready to begin Spec #4 (MCP Server)
+**Phase:** Spec #3 complete ✅ — all three PRs merged to dev — ready for Spec #4 (MCP Server)
 **Last updated:** 2026-03-07
-**Next action:** Open PR for feat/5-query-service → dev. Then write GitHub Issue spec for Spec #4 (MCP Server). Branch will be: `feat/NNN-mcp-server`.
+**Next action:** Write GitHub Issue spec for Spec #4 (MCP Server) first. Branch: `feat/NNN-mcp-server`. No code before spec.
 
 ---
 
@@ -23,44 +23,49 @@
 - [x] `MEMORY.md` — this file
 - [x] `docs/adr/TEMPLATE.md` — ADR template
 
-### Infrastructure (Docker Compose — foundation)
-- [x] `docker-compose.yml` — Qdrant + Ollama + n8n with healthchecks
-- [x] `.env.example` — all required variables documented
-- [x] `scripts/pull-models.sh` — pulls `nomic-embed-text` + `llama3.2`
-- [x] `scripts/init-qdrant.py` — creates `kong`, `personal`, `music` collections (768-dim, Cosine)
-
-### Infrastructure (Spec #1 — complete, PR #2 open → dev)
-- [x] `docker-compose.yml` — Ollama, Qdrant v1.13.5, Neo4j 5 Community, n8n, Kong; stubs for query + notebooklm-mcp
+### Infrastructure (Spec #1 — merged to dev, PR #2)
+- [x] `docker-compose.yml` — Ollama, Qdrant v1.13.5, Neo4j 5 Community, n8n, Kong stubs
 - [x] `.env.example` — all required variables documented
 - [x] `scripts/init-neo4j.py` — idempotent: 4 constraints, 3 range indexes, 1 full-text index
 - [x] `scripts/init-qdrant.py` — idempotent: kong/personal/music (768-dim, Cosine)
 - [x] `query/tests/integration/test_neo4j.py` — 10 integration tests, all green
 - [x] `query/tests/integration/test_qdrant.py` — 11 integration tests, all green
 - [x] `docs/specs/SPEC-001-neo4j-infrastructure.md` — spec committed
-- [x] GitHub Issue #1 created, PR #2 open
+- [x] GitHub Issue #1 created, PR #2 merged → dev
 
 ### Kong AI Gateway (foundation)
 - [x] `kong/kong-ollama.yaml` — decK config
   - `/notebooklm/embed` → Ollama nomic-embed-text (ai-proxy, http-log)
   - `/notebooklm/chat` → Ollama llama3.2 (ai-proxy, ai-rate-limiting-advanced, ai-pii-sanitizer, http-log)
-  - ⚠️ Does NOT yet include MCP Gateway route — needs update
+  - ⚠️ Does NOT yet include MCP Gateway route — needs update in Spec #5
+
+### Spec #2 — n8n Graph Extraction Step (merged to dev, PR #4)
+- [x] `n8n/workflows/ingest-pipeline.json` — 8-node ingest pipeline
+- [x] `query/tests/integration/test_graph_extraction.py` — 8 integration tests
+- [x] `docs/specs/SPEC-002-n8n-graph-extraction.md` — spec committed
+- [x] docker-compose.yml: Ollama TCP healthcheck, n8n task runner env vars
+- [x] **29/29 integration tests green** (21 Spec #1 + 8 Spec #2)
+- [x] GitHub Issue #3 created, PR #4 merged → dev
+
+### Spec #3 — Query Service (merged to dev, PR #6)
+- [x] `query/config.py` — fail-fast env var validation
+- [x] `query/models.py` — Pydantic v2: QueryRequest, QueryResponse, Citation, etc.
+- [x] `query/rag.py` — embed via Kong + Qdrant vector search (notebook-scoped)
+- [x] `query/graph.py` — concept extraction via Kong + Neo4j traversal (1–2 hops)
+- [x] `query/hybrid.py` — merge + re-rank: (qdrant×0.6) + (1/hop×0.4)
+- [x] `query/main.py` — FastAPI: /health, /query, /collections, /graph/{title}, /graph/relationship
+- [x] `query/Dockerfile` + `query/requirements.txt`
+- [x] `docker-compose.yml` — query service uncommented with healthcheck
+- [x] `query/tests/unit/` — 30 unit tests green
+- [x] `query/tests/integration/test_query_endpoint.py` — 8 integration tests green
+- [x] **59/59 tests green** (30 unit + 29 integration; 8 n8n skipped — expected)
+- [x] GitHub Issue #5 created, PR #6 merged → dev
 
 ---
 
 ## In Progress
 
-### Spec #2 — n8n Graph Extraction Step ✅ COMPLETE (PR #4 open → dev)
-- [x] All implementation committed on feat/3-n8n-graph-extraction
-- [x] **29/29 integration tests green**: 21 Spec #1 + 8 Spec #2
-- [x] PR #4 open: feat/3-n8n-graph-extraction → dev
-
-### Spec #3 — Query Service ✅ COMPLETE (PR pending)
-- [x] GitHub Issue #5 created
-- [x] Red phase: 30 unit + 8 integration tests committed (feat/5-query-service)
-- [x] Green phase: config.py, models.py, rag.py, graph.py, hybrid.py, main.py, Dockerfile
-- [x] **59/59 tests green** (30 unit + 29 integration; 8 n8n skipped — expected)
-- [x] docker-compose.yml updated: query service uncommented with healthcheck
-- [ ] PR not yet opened: feat/5-query-service → dev
+Nothing in progress.
 
 ---
 
@@ -68,13 +73,7 @@
 
 ### SPEC WRITING FIRST — create GitHub Issues before any implementation
 
-**Spec #1 — Neo4j Infrastructure** ✅ DONE (PR #2)
-
-**Spec #2 — n8n Graph Extraction Step** ✅ DONE (PR pending)
-
-**Spec #3 — Query Service (FastAPI + GraphRAG)** ✅ DONE (PR pending)
-
-**Spec #4 — MCP Server**
+**Spec #4 — MCP Server** (beads: plaudeLM-lk7, P1)
 - `mcp/src/index.ts` — entry point, transport selection (stdio/sse)
 - `mcp/src/server.ts` — tool registry
 - `mcp/src/tools/` — all 7 tools (ingest, query, search_concepts, add_relationship, list_notebooks, get_document_graph, audio_overview)
@@ -96,7 +95,7 @@
 - E2E: 3 tests (one per notebook) — ingest → query → verify citation
 - Acceptance: `npm test` and `pytest` both pass green
 
-**Spec #7 — Audio Overview**
+**Spec #7 — Audio Overview** (beads: plaudeLM-69j, P3)
 - `query/audio.py` — llama3.2 podcast script generation (host + guest format)
 - TTS via local Coqui TTS or Ollama TTS
 - `POST /audio-overview` FastAPI endpoint
@@ -149,38 +148,53 @@
 | 2026-03-07 | Spec-driven development + TDD | Quality, testability, and traceability from day one |
 | 2026-03-07 | Jest (TS) + pytest (Python) | Best-in-class for each language; separate concerns cleanly |
 | 2026-03-07 | All four test layers (unit/integration/contract/e2e) | Each layer catches different failure modes; contract tests protect MCP schema stability |
-| 2026-03-07 | CHAT_ENDPOINT / EMBED_ENDPOINT env vars in n8n | Decouples n8n from Kong during dev; set to Ollama direct (http://ollama:11434/api/*) until Kong is layered in (Spec #5) |
-| 2026-03-07 | NODE_FUNCTION_ALLOW_BUILTIN=crypto in docker-compose.yml | n8n 1.90.2 task runner sandbox blocks all Node.js builtins; must explicitly allow crypto for require('crypto').randomUUID() |
-| 2026-03-07 | n8n Code node sandbox API (task runner) | $env['KEY'] not process.env; helpers.httpRequest() not $helpers; runOnceForEachItem returns {json:...} not [{json:...}]; crypto global not exposed |
-| 2026-03-07 | n8n owner setup: POST /rest/owner/setup {email, firstName, lastName, password (≥8 chars, ≥1 uppercase)} | Login field is emailOrLdapLoginId. Owner must exist before Code nodes execute in active workflows. |
+| 2026-03-07 | CHAT_ENDPOINT / EMBED_ENDPOINT env vars in n8n | Decouples n8n from Kong during dev; set to Ollama direct until Kong is layered in (Spec #5) |
+| 2026-03-07 | NODE_FUNCTION_ALLOW_BUILTIN=crypto in docker-compose.yml | n8n 1.90.2 task runner sandbox blocks all Node.js builtins; must explicitly allow crypto for randomUUID() |
+| 2026-03-07 | n8n Code node sandbox API (task runner) | $env['KEY'] not process.env; helpers.httpRequest() not $helpers; runOnceForEachItem returns {json:...}; crypto global not exposed |
+| 2026-03-07 | n8n owner setup: POST /rest/owner/setup {email, firstName, lastName, password (≥8 chars, ≥1 uppercase)} | Login field is emailOrLdapLoginId. Owner must exist before Code nodes execute. |
 | 2026-03-07 | Kong not deployed until core stack is stable | User decision: get neo4j+qdrant+ollama+n8n working first; add Kong as Spec #5 |
-| 2026-03-07 | Ollama healthcheck uses TCP not curl | Ollama image has no curl; use bash TCP check same as Qdrant |
+| 2026-03-07 | Ollama healthcheck uses TCP not curl | Ollama image has no curl; use bash TCP check |
 | 2026-03-07 | N8N_SECURE_COOKIE=false for local dev | n8n requires HTTPS for secure cookies; HTTP-only local dev needs this off |
 | 2026-03-07 | N8N_RUNNERS_ENABLED=true required | n8n 1.90.2 needs task runners for Code nodes to execute; without it, Code nodes silently skip |
-| 2026-03-07 | query service uses TestClient (not live server) for integration tests | FastAPI TestClient exercises real Qdrant+Neo4j without needing a running HTTP server; Kong/Ollama gracefully degrade |
+| 2026-03-07 | query service uses TestClient (not live server) for integration tests | FastAPI TestClient exercises real Qdrant+Neo4j without needing a running HTTP server |
 | 2026-03-07 | pythonpath=["."] required in pyproject.toml | pytest with unit __init__.py does not auto-add rootdir to sys.path; must be explicit |
-| 2026-03-07 | module-scoped pytest fixtures cannot use function-scoped monkeypatch | use os.environ.setdefault() directly in module-scoped fixtures; monkeypatch only in function-scoped tests |
+| 2026-03-07 | module-scoped pytest fixtures cannot use function-scoped monkeypatch | Use os.environ.setdefault() in module-scoped fixtures; monkeypatch only in function-scoped tests |
+| 2026-03-07 | /query endpoint gracefully degrades on Kong/Ollama failure | Returns empty results rather than 502 when embedding/graph calls fail; only answer-generation step raises 502 |
 
 ---
 
 ## Known Issues / Watch Out For
 
-- **n8n import creates duplicates** — `n8n import:workflow` always creates a new workflow (new ID) rather than updating in-place. After each import, must activate new, deactivate + delete old via REST API. Consider scripting this.
-- **Qdrant client version mismatch** — host has qdrant-client 1.17.0 but server is 1.13.5. Tests still pass; suppress with `check_compatibility=False` if needed. Pin client version when setting up query service venv.
-- **llama3.2 and nomic-embed-text not pre-pulled** — models must be pulled manually with `docker exec notebooklm-ollama ollama pull <model>` before ingest pipeline LLM steps work. Summarize/Extract nodes silently degrade (empty output) when model unavailable — this is intentional fallback behavior.
-- **Qdrant point IDs** — fixed in Spec #2 workflow (crypto.randomUUID()). Not yet verified green.
-- **llama3.2 JSON reliability** — graph extraction prompt may produce malformed JSON on edge cases. Retry logic + JSON validation implemented in n8n Code node with fallback to empty arrays.
-- **llama3.2 CPU speed** — ~5-10 tok/s on CPU. Ingest is async so acceptable. For interactive query, cap `max_tokens` to keep latency reasonable.
+- **n8n import creates duplicates** — `n8n import:workflow` always creates a new workflow (new ID). After each import, activate new, deactivate + delete old via REST API.
+- **Qdrant client version mismatch** — host has qdrant-client 1.17.0 but server is 1.13.5. Tests pass; suppress with `check_compatibility=False` if needed. Pin to ~1.13.0 in venv.
+- **llama3.2 and nomic-embed-text not pre-pulled** — models must be pulled manually before ingest pipeline LLM steps work. Summarize/Extract nodes silently degrade (empty output) when unavailable — intentional fallback.
+- **Qdrant point IDs** — fixed in Spec #2 workflow (crypto.randomUUID()). Verified green in Spec #2 integration tests.
+- **llama3.2 JSON reliability** — graph extraction prompt may produce malformed JSON on edge cases. Retry + JSON validation in n8n Code node; fallback to empty arrays.
+- **llama3.2 CPU speed** — ~5-10 tok/s on CPU. For /query, cap `max_tokens: 512` to keep latency reasonable.
 - **Neo4j Community Edition** — no multiple databases. All notebooks share one database, scoped by node properties. Fine for this design.
-- **Neo4j memory** — tune `NEO4J_server_memory_heap_max__size` and `pagecache_size` in docker-compose for home lab constraints. Start with 1G heap, 512M pagecache.
-- **Google Drive ingest** — requires Google OAuth 2.0 app. Set up at console.cloud.google.com; credentials go in `.env` and n8n Credentials UI.
-- **PDF ingest via n8n** — requires multipart/form-data (binary), not JSON. Document this clearly in MCP `ingest_document` tool error messages.
-- **MCP transport switching** — when `MCP_TRANSPORT=sse`, the stdio handler must not be initialized (and vice versa). Validate at startup in `config.ts`.
+- **Neo4j auth rate limiting** — too many wrong-password attempts triggers temporary lockout. Password is `changeme` (from .env). Check `.env` before running integration tests.
+- **Neo4j memory** — tune `NEO4J_server_memory_heap_max__size` and `pagecache_size` in docker-compose for home lab. Start with 1G heap, 512M pagecache.
+- **Google Drive ingest** — requires Google OAuth 2.0 app. Set up at console.cloud.google.com; credentials in `.env` and n8n Credentials UI.
+- **PDF ingest via n8n** — requires multipart/form-data (binary), not JSON. Document in MCP `ingest_document` error messages.
+- **MCP transport switching** — when `MCP_TRANSPORT=sse`, stdio handler must not be initialized. Validate at startup in `config.ts`.
 - **Kong MCP Gateway** — `ai-mcp-proxy` plugin config needs to match the MCP server's SSE endpoint path exactly. Test with `deck diff` before `deck sync`.
+- **mcp/ and tests/e2e/ do not exist yet** — Spec #4 (MCP Server) and Spec #6 (Test Suite) are next. `npm test` and `npm run test:contract` have nothing to run.
 
 ---
 
 ## Session Notes
+
+### 2026-03-07 — Spec #3 + merge session
+- PR #4 opened for feat/3-n8n-graph-extraction → dev
+- GitHub Issue #5 created for Spec #3 (Query Service)
+- Branch feat/5-query-service created (rebased onto feat/3-n8n-graph-extraction)
+- Red phase: 30 unit + 8 integration tests committed — all failing (ModuleNotFoundError)
+- Green phase: config.py, models.py, rag.py, graph.py, hybrid.py, main.py, Dockerfile, requirements.txt
+- Fixed 2 test issues: mock scope (MagicMock→AsyncMock for driver.close), lowercase concept normalization
+- Fixed integration test scope mismatch (module-scoped fixture + function-scoped monkeypatch)
+- 59/59 tests green; 8 n8n tests skipped (n8n webhook not running — expected)
+- All three PRs (#2, #4, #6) merged to dev; merge conflicts resolved by taking feat/5 versions throughout
+- bd ready output: plaudeLM-lk7 (Spec #4 MCP Server, P1) and plaudeLM-69j (Spec #7 Audio, P3) unblocked
 
 ### 2026-03-07 — Spec #1 implementation session
 - Repo initialized, pushed to GitHub (public), branch protection on main, dev branch created
@@ -192,42 +206,10 @@
 - 21/21 integration tests green, PR #2 open feat/1-neo4j-infrastructure → dev
 - IMPORTANT: never use --remove-orphans flag; it stops containers from other compose projects
 
-### 2026-03-07 — Initial build session
-- Full stack designed and scaffolded
-- Foundation files generated (docker-compose, n8n workflow, Kong config, init scripts)
-
-### 2026-03-07 — Knowledge graph design session
-- Decided on Neo4j + GraphRAG hybrid retrieval
-- Designed all node types, relationship types, scoping strategy
-- Established re-ranking formula (60% vector, 40% graph)
-
-### 2026-03-07 — Spec #2 session (graph extraction)
-- Branch `feat/3-n8n-graph-extraction` created from dev
-- Red phase: 8 failing integration tests written for all Spec #2 ACs
-- Green phase: `n8n/workflows/ingest-pipeline.json` created (8 nodes, full graph extraction pipeline)
-- docker-compose.yml updated: Ollama TCP healthcheck, n8n env vars, N8N_SECURE_COOKIE=false, N8N_RUNNERS_ENABLED=true
-- .env.example updated: NEO4J_HTTP_URL, CHAT_ENDPOINT, EMBED_ENDPOINT, TEST_N8N_WEBHOOK_URL
-- Stack started: neo4j, qdrant, ollama, n8n (no kong — deferred)
-- Workflow imported via `docker exec n8n import:workflow --input=...`
-- **BLOCKER**: n8n Code nodes not executing — `/rest/owner/setup` returns 500
-- 21/21 Spec #1 tests green; 8/8 Spec #2 tests red (pipeline not running)
-- `update:workflow` is deprecated in n8n 1.90.2 — use `publish:workflow --id=` instead
-- IMPORTANT: never use --remove-orphans flag; stops containers from other compose projects
-- httpx>=0.27 added to query/requirements-dev.txt
-
 ### 2026-03-07 — Spec #2 green phase completion
 - Unblocked n8n owner setup: POST /rest/owner/setup, correct body fields discovered from source
 - Found and fixed 5 Code node sandbox bugs (crypto, process.env, $helpers, return shape, kongUrl)
 - Added NODE_FUNCTION_ALLOW_BUILTIN=crypto to docker-compose.yml; restarted n8n
 - Ollama models pulled: nomic-embed-text (274MB), llama3.2 (2.0GB)
 - 8/8 Spec #2 integration tests green; 21/21 Spec #1 tests still green (no regression)
-- beads task plaudeLM-64c closed; plaudeLM-a3t (Spec #3) now unblocked
-- MCP (`mcp/`) and query unit tests (`query/tests/unit/`) do not exist yet — Specs #3 and #4
-- PR for feat/3-n8n-graph-extraction → dev not yet opened
-
-### 2026-03-07 — MCP server + constitution session
-- Designed full MCP server architecture (7 tools, dual transport, TypeScript)
-- Established spec-driven development + TDD mandate
-- Created CONSTITUTION.md, ARCHITECTURE.md, updated CLAUDE.md + MEMORY.md
-- **Next session must start by writing GitHub Issue specs before any code**
-- Suggested order: Spec #1 (Neo4j) → Spec #2 (graph extraction) → Spec #3 (query service) → Spec #4 (MCP server)
+- IMPORTANT: never use --remove-orphans flag; stops containers from other compose projects
