@@ -49,17 +49,15 @@
 
 ## In Progress
 
-### Spec #2 — n8n Graph Extraction Step (branch: feat/3-n8n-graph-extraction)
+### Spec #2 — n8n Graph Extraction Step ✅ GREEN (branch: feat/3-n8n-graph-extraction)
 - [x] Red phase: 8 failing integration tests committed (test_graph_extraction.py)
 - [x] `n8n/workflows/ingest-pipeline.json` — 8-node pipeline written (graph extraction + UUID IDs + Neo4j writes + Qdrant upsert)
-- [x] `docker-compose.yml` — n8n env vars, Ollama TCP healthcheck, N8N_SECURE_COOKIE=false, N8N_RUNNERS_ENABLED=true
+- [x] `docker-compose.yml` — n8n env vars, Ollama TCP healthcheck, N8N_SECURE_COOKIE=false, N8N_RUNNERS_ENABLED=true, NODE_FUNCTION_ALLOW_BUILTIN=crypto
 - [x] `.env.example` — NEO4J_HTTP_URL, CHAT_ENDPOINT, EMBED_ENDPOINT, TEST_N8N_WEBHOOK_URL added
 - [x] Stack running: neo4j, qdrant, ollama, n8n (no kong — layered in later)
-- [x] Workflow imported into n8n via CLI, task runner registered
-- [ ] **BLOCKED**: n8n Code nodes not executing — webhook returns 200 immediately with no body
-  - Root cause: n8n owner account not set up; `/rest/owner/setup` returns 500 body-parse error
-  - Must resolve before Spec #2 tests can go green
-- [ ] 8 Spec #2 integration tests still failing (expected — green phase incomplete)
+- [x] n8n owner account setup: POST /rest/owner/setup with {emailOrLdapLoginId, password} (login uses emailOrLdapLoginId, setup uses email)
+- [x] **8/8 Spec #2 integration tests GREEN** — pipeline runs end-to-end
+- [ ] PR needs to be opened: feat/3-n8n-graph-extraction → dev
 
 ---
 
@@ -157,6 +155,8 @@
 | 2026-03-07 | Jest (TS) + pytest (Python) | Best-in-class for each language; separate concerns cleanly |
 | 2026-03-07 | All four test layers (unit/integration/contract/e2e) | Each layer catches different failure modes; contract tests protect MCP schema stability |
 | 2026-03-07 | CHAT_ENDPOINT / EMBED_ENDPOINT env vars in n8n | Decouples n8n from Kong during dev; set to Ollama direct (http://ollama:11434/api/*) until Kong is layered in (Spec #5) |
+| 2026-03-07 | NODE_FUNCTION_ALLOW_BUILTIN=crypto in docker-compose.yml | n8n task runner sandbox blocks all Node.js builtins by default; must explicitly allow crypto for randomUUID() |
+| 2026-03-07 | n8n Code node API: $env not process.env, helpers not $helpers, single object not array for runOnceForEachItem | Task runner sandbox exposes env via $env['KEY'], HTTP via helpers.httpRequest(), per-item return is {json:...} not [{json:...}] |
 | 2026-03-07 | Kong not deployed until core stack is stable | User decision: get neo4j+qdrant+ollama+n8n working first; add Kong as Spec #5 |
 | 2026-03-07 | Ollama healthcheck uses TCP not curl | Ollama image has no curl; use bash TCP check same as Qdrant |
 | 2026-03-07 | N8N_SECURE_COOKIE=false for local dev | n8n requires HTTPS for secure cookies; HTTP-only local dev needs this off |
@@ -166,9 +166,7 @@
 
 ## Known Issues / Watch Out For
 
-- **n8n owner setup blocked** — `/rest/owner/setup` returns HTTP 500 "Failed to parse request body" even with N8N_SECURE_COOKIE=false. Start next session by reading the n8n 1.90.2 owner controller source to get the exact expected request body before touching anything else.
-- **n8n Code nodes require owner** — imported workflows do not execute unless the n8n instance has a configured owner. `update:workflow --active=true` is deprecated; use `publish:workflow --id=<id>` instead.
-- **n8n workflow not executing** — webhook returns HTTP 200 immediately with no body; no execution logs in container. Root cause: no owner credentials set, so n8n rejects execution silently.
+- **n8n owner setup** — RESOLVED. `POST /rest/owner/setup` body: `{email, firstName, lastName, password}`. Login field is `emailOrLdapLoginId`. Password must have ≥1 uppercase letter. Credentials: paul@notebooklm.local / Notebooklm1
 - **Qdrant point IDs** — fixed in Spec #2 workflow (crypto.randomUUID()). Not yet verified green.
 - **llama3.2 JSON reliability** — graph extraction prompt may produce malformed JSON on edge cases. Retry logic + JSON validation implemented in n8n Code node with fallback to empty arrays.
 - **llama3.2 CPU speed** — ~5-10 tok/s on CPU. Ingest is async so acceptable. For interactive query, cap `max_tokens` to keep latency reasonable.

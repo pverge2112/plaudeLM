@@ -12,9 +12,9 @@ services:
     ports:
       - "11434:11434"
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:11434/api/tags"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/11434' || exit 1"]
+      interval: 15s
+      timeout: 5s
       retries: 5
       start_period: 20s
     restart: unless-stopped
@@ -79,9 +79,15 @@ services:
       WEBHOOK_URL: ${N8N_WEBHOOK_BASE_URL:-http://localhost:5678}
       DB_TYPE: sqlite
       GENERIC_TIMEZONE: ${TZ:-America/New_York}
-      # Service URLs used by Code nodes in the ingest pipeline
-      # These point to sibling containers via Docker service names (IV.4)
-      KONG_PROXY_URL: ${KONG_PROXY_URL:-http://kong:8000}
+      N8N_SECURE_COOKIE: "false"
+      N8N_RUNNERS_ENABLED: "true"
+      NODE_FUNCTION_ALLOW_BUILTIN: "crypto"
+      # LLM endpoints used by ingest pipeline Code nodes.
+      # Dev default: Ollama direct (http://ollama:11434/api/*)
+      # Prod: set to Kong routes (http://kong:8000/notebooklm/*)
+      CHAT_ENDPOINT: ${CHAT_ENDPOINT:-http://ollama:11434/api/chat}
+      EMBED_ENDPOINT: ${EMBED_ENDPOINT:-http://ollama:11434/api/embed}
+      # Data store URLs — Docker service names (stable per IV.4)
       QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
       NEO4J_HTTP_URL: ${NEO4J_HTTP_URL:-http://neo4j:7474}
       NEO4J_USER: ${NEO4J_USER:-neo4j}
@@ -97,8 +103,6 @@ services:
       neo4j:
         condition: service_healthy
       ollama:
-        condition: service_healthy
-      kong:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:5678/healthz"]

@@ -1,5 +1,5 @@
 {
-  "name": "NotebookLM — Ingest Pipeline",
+  "name": "NotebookLM \u2014 Ingest Pipeline",
   "active": false,
   "settings": {
     "executionOrder": "v1"
@@ -10,7 +10,10 @@
       "name": "Ingest Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [200, 300],
+      "position": [
+        200,
+        300
+      ],
       "webhookId": "notebooklm-ingest",
       "parameters": {
         "httpMethod": "POST",
@@ -24,10 +27,13 @@
       "name": "Normalize Input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [440, 300],
+      "position": [
+        440,
+        300
+      ],
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "// Validate and normalize the ingest webhook payload.\n// Required: source_type, notebook, title\n// Optional: content (required for markdown), url/source_url (for url/gdrive), doc_id\nconst body = $input.first().json.body || $input.first().json;\n\nconst required = ['source_type', 'notebook', 'title'];\nfor (const field of required) {\n  if (!body[field]) throw new Error(`Missing required field: ${field}`);\n}\n\nconst validNotebooks = ['kong', 'personal', 'music'];\nif (!validNotebooks.includes(body.notebook)) {\n  throw new Error(`Invalid notebook '${body.notebook}'. Must be one of: ${validNotebooks.join(', ')}`);\n}\n\nconst validSourceTypes = ['pdf', 'url', 'markdown', 'gdrive'];\nif (!validSourceTypes.includes(body.source_type)) {\n  throw new Error(`Invalid source_type '${body.source_type}'. Must be one of: ${validSourceTypes.join(', ')}`);\n}\n\nif (body.source_type === 'markdown' && !body.content) {\n  throw new Error('content is required for source_type=markdown');\n}\n\nconst docId = body.doc_id || crypto.randomUUID();\n\nreturn [{\n  json: {\n    doc_id: docId,\n    source_type: body.source_type,\n    notebook: body.notebook,\n    title: body.title,\n    content: body.content || '',\n    source_url: body.url || body.source_url || '',\n    ingested_at: new Date().toISOString(),\n  }\n}];"
+        "jsCode": "// Validate and normalize the ingest webhook payload.\n// Required: source_type, notebook, title\n// Optional: content (required for markdown), url/source_url (for url/gdrive), doc_id\nconst body = $input.first().json.body || $input.first().json;\n\nconst required = ['source_type', 'notebook', 'title'];\nfor (const field of required) {\n  if (!body[field]) throw new Error(`Missing required field: ${field}`);\n}\n\nconst validNotebooks = ['kong', 'personal', 'music'];\nif (!validNotebooks.includes(body.notebook)) {\n  throw new Error(`Invalid notebook '${body.notebook}'. Must be one of: ${validNotebooks.join(', ')}`);\n}\n\nconst validSourceTypes = ['pdf', 'url', 'markdown', 'gdrive'];\nif (!validSourceTypes.includes(body.source_type)) {\n  throw new Error(`Invalid source_type '${body.source_type}'. Must be one of: ${validSourceTypes.join(', ')}`);\n}\n\nif (body.source_type === 'markdown' && !body.content) {\n  throw new Error('content is required for source_type=markdown');\n}\n\nconst docId = body.doc_id || require('crypto').randomUUID();\n\nreturn [{\n  json: {\n    doc_id: docId,\n    source_type: body.source_type,\n    notebook: body.notebook,\n    title: body.title,\n    content: body.content || '',\n    source_url: body.url || body.source_url || '',\n    ingested_at: new Date().toISOString(),\n  }\n}];"
       }
     },
     {
@@ -35,10 +41,13 @@
       "name": "Split Into Chunks",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [680, 300],
+      "position": [
+        680,
+        300
+      ],
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "// Split document content into 500-word chunks with 50-word overlap.\n// Each chunk gets a crypto.randomUUID() that becomes:\n//   - The Neo4j Chunk.id\n//   - The Qdrant point ID\n// This fixes the composite-ID bug (Spec #2) and enables neo4j_chunk_id linkage.\nconst item = $input.first().json;\nconst words = (item.content || '').trim().split(/\\s+/).filter(Boolean);\n\nif (words.length === 0) {\n  throw new Error(`Document '${item.title}' has empty content — nothing to ingest`);\n}\n\nconst CHUNK_SIZE = 500;\nconst OVERLAP = 50;\n\nconst chunks = [];\nlet start = 0;\n\nwhile (start < words.length) {\n  const end = Math.min(start + CHUNK_SIZE, words.length);\n  chunks.push(words.slice(start, end).join(' '));\n  if (end === words.length) break;\n  start += CHUNK_SIZE - OVERLAP;\n}\n\nconst total = chunks.length;\nreturn chunks.map((text, idx) => ({\n  json: {\n    doc_id: item.doc_id,\n    source_type: item.source_type,\n    notebook: item.notebook,\n    title: item.title,\n    source_url: item.source_url,\n    ingested_at: item.ingested_at,\n    chunk_id: crypto.randomUUID(),\n    chunk_text: text,\n    chunk_index: idx,\n    total_chunks: total,\n  }\n}));"
+        "jsCode": "// Split document content into 500-word chunks with 50-word overlap.\n// Each chunk gets a crypto.randomUUID() that becomes:\n//   - The Neo4j Chunk.id\n//   - The Qdrant point ID\n// This fixes the composite-ID bug (Spec #2) and enables neo4j_chunk_id linkage.\nconst item = $input.first().json;\nconst words = (item.content || '').trim().split(/\\s+/).filter(Boolean);\n\nif (words.length === 0) {\n  throw new Error(`Document '${item.title}' has empty content \u2014 nothing to ingest`);\n}\n\nconst CHUNK_SIZE = 500;\nconst OVERLAP = 50;\n\nconst chunks = [];\nlet start = 0;\n\nwhile (start < words.length) {\n  const end = Math.min(start + CHUNK_SIZE, words.length);\n  chunks.push(words.slice(start, end).join(' '));\n  if (end === words.length) break;\n  start += CHUNK_SIZE - OVERLAP;\n}\n\nconst total = chunks.length;\nreturn chunks.map((text, idx) => ({\n  json: {\n    doc_id: item.doc_id,\n    source_type: item.source_type,\n    notebook: item.notebook,\n    title: item.title,\n    source_url: item.source_url,\n    ingested_at: item.ingested_at,\n    chunk_id: require('crypto').randomUUID(),\n    chunk_text: text,\n    chunk_index: idx,\n    total_chunks: total,\n  }\n}));"
       }
     },
     {
@@ -46,10 +55,13 @@
       "name": "Summarize Chunk",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [920, 300],
+      "position": [
+        920,
+        300
+      ],
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Call Kong /notebooklm/chat (llama3.2) to summarize the chunk and extract tags.\n// Falls back to empty summary/tags on error so a slow/unavailable LLM\n// does not block the full ingest.\nconst item = $input.item.json;\n\nconst kongUrl = process.env.KONG_PROXY_URL;\nif (!kongUrl) throw new Error('KONG_PROXY_URL env var not set in n8n container');\n\nconst prompt =\n  'Summarize the following text in 2-3 sentences, then list 3-7 keyword tags.\\n' +\n  'Return ONLY valid JSON with no explanation or markdown fences:\\n' +\n  '{\"summary\": \"...\", \"tags\": [\"tag1\", \"tag2\"]}\\n\\n' +\n  'Text:\\n' + item.chunk_text;\n\nlet summary = '';\nlet tags = [];\n\ntry {\n  const res = await $helpers.httpRequest({\n    method: 'POST',\n    url: `${kongUrl}/notebooklm/chat`,\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({\n      model: 'llama3.2',\n      messages: [{ role: 'user', content: prompt }],\n      stream: false,\n    }),\n  });\n\n  const parsed = typeof res === 'string' ? JSON.parse(res) : res;\n  const content =\n    parsed?.message?.content ||\n    parsed?.choices?.[0]?.message?.content ||\n    '';\n\n  const jsonMatch = content.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    const data = JSON.parse(jsonMatch[0]);\n    summary = typeof data.summary === 'string' ? data.summary : '';\n    tags = Array.isArray(data.tags) ? data.tags.map(String) : [];\n  }\n} catch (err) {\n  console.warn(`[Summarize] chunk ${item.chunk_index} of '${item.title}': ${err.message}`);\n}\n\nreturn [{ json: { ...item, summary, tags } }];"
+        "jsCode": "// Call Kong /notebooklm/chat (llama3.2) to summarize the chunk and extract tags.\n// Falls back to empty summary/tags on error so a slow/unavailable LLM\n// does not block the full ingest.\nconst item = $input.item.json;\n\nconst chatUrl = $env['CHAT_ENDPOINT'];\nconst embedUrl = $env['EMBED_ENDPOINT'];\nif (!chatUrl) throw new Error('CHAT_ENDPOINT env var not set in n8n container');\n\nconst prompt =\n  'Summarize the following text in 2-3 sentences, then list 3-7 keyword tags.\\n' +\n  'Return ONLY valid JSON with no explanation or markdown fences:\\n' +\n  '{\"summary\": \"...\", \"tags\": [\"tag1\", \"tag2\"]}\\n\\n' +\n  'Text:\\n' + item.chunk_text;\n\nlet summary = '';\nlet tags = [];\n\ntry {\n  const res = await helpers.httpRequest({\n    method: 'POST',\n    url: `${chatUrl}`,\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({\n      model: 'llama3.2',\n      messages: [{ role: 'user', content: prompt }],\n      stream: false,\n    }),\n  });\n\n  const parsed = typeof res === 'string' ? JSON.parse(res) : res;\n  const content =\n    parsed?.message?.content ||\n    parsed?.choices?.[0]?.message?.content ||\n    '';\n\n  const jsonMatch = content.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    const data = JSON.parse(jsonMatch[0]);\n    summary = typeof data.summary === 'string' ? data.summary : '';\n    tags = Array.isArray(data.tags) ? data.tags.map(String) : [];\n  }\n} catch (err) {\n  console.warn(`[Summarize] chunk ${item.chunk_index} of '${item.title}': ${err.message}`);\n}\n\nreturn { json: { ...item, summary, tags } };"
       }
     },
     {
@@ -57,10 +69,13 @@
       "name": "Extract Graph Entities",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1160, 300],
+      "position": [
+        1160,
+        300
+      ],
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Call Kong /notebooklm/chat (llama3.2) to extract graph entities.\n// Retries once on malformed JSON. Falls back to empty arrays.\n// Spec #2 AC: concepts[], relationships[], events[] written to Neo4j.\nconst item = $input.item.json;\n\nconst kongUrl = process.env.KONG_PROXY_URL;\nif (!kongUrl) throw new Error('KONG_PROXY_URL env var not set in n8n container');\n\nconst prompt =\n  'Extract knowledge graph entities from the text below.\\n' +\n  'Return ONLY valid JSON with no explanation or markdown fences:\\n' +\n  '{\\n' +\n  '  \"concepts\": [\"concept name\", ...],\\n' +\n  '  \"relationships\": [{\"from\": \"concept1\", \"to\": \"concept2\", \"weight\": 1.0}, ...],\\n' +\n  '  \"events\": [{\"name\": \"event name\", \"date\": null}, ...]\\n' +\n  '}\\n\\n' +\n  'Rules:\\n' +\n  '- concepts: key noun phrases, normalized to lowercase\\n' +\n  '- relationships: pairs of concepts that are meaningfully connected\\n' +\n  '- events: named occurrences with optional ISO8601 date or null\\n' +\n  '- Return empty arrays if none found\\n\\n' +\n  'Text:\\n' + item.chunk_text;\n\nconst requestBody = JSON.stringify({\n  model: 'llama3.2',\n  messages: [{ role: 'user', content: prompt }],\n  stream: false,\n  options: { temperature: 0.1 },\n});\n\nconst callKong = async () => {\n  const res = await $helpers.httpRequest({\n    method: 'POST',\n    url: `${kongUrl}/notebooklm/chat`,\n    headers: { 'Content-Type': 'application/json' },\n    body: requestBody,\n  });\n  const parsed = typeof res === 'string' ? JSON.parse(res) : res;\n  return (\n    parsed?.message?.content ||\n    parsed?.choices?.[0]?.message?.content ||\n    ''\n  );\n};\n\nconst extractJSON = (text) => {\n  const match = text.match(/\\{[\\s\\S]*\\}/);\n  if (!match) return null;\n  try {\n    const data = JSON.parse(match[0]);\n    if (!Array.isArray(data.concepts)) return null;\n    return data;\n  } catch {\n    return null;\n  }\n};\n\nlet graphData = { concepts: [], relationships: [], events: [] };\n\ntry {\n  const content1 = await callKong();\n  let parsed = extractJSON(content1);\n\n  if (!parsed) {\n    console.warn(\n      `[GraphExtract] Malformed JSON on attempt 1, chunk ${item.chunk_index} of '${item.title}'. Retrying...`\n    );\n    const content2 = await callKong();\n    parsed = extractJSON(content2);\n    if (!parsed) {\n      console.warn(\n        `[GraphExtract] Malformed JSON on retry, chunk ${item.chunk_index}. Using empty arrays.`\n      );\n    }\n  }\n\n  if (parsed) {\n    graphData = {\n      concepts: (parsed.concepts || [])\n        .map((c) => String(c).toLowerCase().trim())\n        .filter(Boolean),\n      relationships: (parsed.relationships || []).filter(\n        (r) => r && r.from && r.to\n      ),\n      events: (parsed.events || []).filter((e) => e && e.name),\n    };\n  }\n} catch (err) {\n  console.warn(`[GraphExtract] Error, chunk ${item.chunk_index}: ${err.message}`);\n}\n\nreturn [{\n  json: {\n    ...item,\n    graph_concepts: graphData.concepts,\n    graph_relationships: graphData.relationships,\n    graph_events: graphData.events,\n  }\n}];"
+        "jsCode": "// Call Kong /notebooklm/chat (llama3.2) to extract graph entities.\n// Retries once on malformed JSON. Falls back to empty arrays.\n// Spec #2 AC: concepts[], relationships[], events[] written to Neo4j.\nconst item = $input.item.json;\n\nconst chatUrl = $env['CHAT_ENDPOINT'];\nconst embedUrl = $env['EMBED_ENDPOINT'];\nif (!chatUrl) throw new Error('CHAT_ENDPOINT env var not set in n8n container');\n\nconst prompt =\n  'Extract knowledge graph entities from the text below.\\n' +\n  'Return ONLY valid JSON with no explanation or markdown fences:\\n' +\n  '{\\n' +\n  '  \"concepts\": [\"concept name\", ...],\\n' +\n  '  \"relationships\": [{\"from\": \"concept1\", \"to\": \"concept2\", \"weight\": 1.0}, ...],\\n' +\n  '  \"events\": [{\"name\": \"event name\", \"date\": null}, ...]\\n' +\n  '}\\n\\n' +\n  'Rules:\\n' +\n  '- concepts: key noun phrases, normalized to lowercase\\n' +\n  '- relationships: pairs of concepts that are meaningfully connected\\n' +\n  '- events: named occurrences with optional ISO8601 date or null\\n' +\n  '- Return empty arrays if none found\\n\\n' +\n  'Text:\\n' + item.chunk_text;\n\nconst requestBody = JSON.stringify({\n  model: 'llama3.2',\n  messages: [{ role: 'user', content: prompt }],\n  stream: false,\n  options: { temperature: 0.1 },\n});\n\nconst callKong = async () => {\n  const res = await helpers.httpRequest({\n    method: 'POST',\n    url: `${chatUrl}`,\n    headers: { 'Content-Type': 'application/json' },\n    body: requestBody,\n  });\n  const parsed = typeof res === 'string' ? JSON.parse(res) : res;\n  return (\n    parsed?.message?.content ||\n    parsed?.choices?.[0]?.message?.content ||\n    ''\n  );\n};\n\nconst extractJSON = (text) => {\n  const match = text.match(/\\{[\\s\\S]*\\}/);\n  if (!match) return null;\n  try {\n    const data = JSON.parse(match[0]);\n    if (!Array.isArray(data.concepts)) return null;\n    return data;\n  } catch {\n    return null;\n  }\n};\n\nlet graphData = { concepts: [], relationships: [], events: [] };\n\ntry {\n  const content1 = await callKong();\n  let parsed = extractJSON(content1);\n\n  if (!parsed) {\n    console.warn(\n      `[GraphExtract] Malformed JSON on attempt 1, chunk ${item.chunk_index} of '${item.title}'. Retrying...`\n    );\n    const content2 = await callKong();\n    parsed = extractJSON(content2);\n    if (!parsed) {\n      console.warn(\n        `[GraphExtract] Malformed JSON on retry, chunk ${item.chunk_index}. Using empty arrays.`\n      );\n    }\n  }\n\n  if (parsed) {\n    graphData = {\n      concepts: (parsed.concepts || [])\n        .map((c) => String(c).toLowerCase().trim())\n        .filter(Boolean),\n      relationships: (parsed.relationships || []).filter(\n        (r) => r && r.from && r.to\n      ),\n      events: (parsed.events || []).filter((e) => e && e.name),\n    };\n  }\n} catch (err) {\n  console.warn(`[GraphExtract] Error, chunk ${item.chunk_index}: ${err.message}`);\n}\n\nreturn {\n  json: {\n    ...item,\n    graph_concepts: graphData.concepts,\n    graph_relationships: graphData.relationships,\n    graph_events: graphData.events,\n  }\n};"
       }
     },
     {
@@ -68,10 +83,13 @@
       "name": "Write to Neo4j",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1400, 300],
+      "position": [
+        1400,
+        300
+      ],
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Write Document, Chunk, Concept, and Event nodes to Neo4j via HTTP transactional API.\n// All writes use MERGE to ensure idempotency (Spec #2 AC: second ingest = no duplicates).\n// Neo4j HTTP endpoint: POST /db/neo4j/tx/commit with { statements: [{statement, parameters}] }\nconst item = $input.item.json;\n\nconst neo4jUrl = process.env.NEO4J_HTTP_URL;\nconst neo4jUser = process.env.NEO4J_USER;\nconst neo4jPassword = process.env.NEO4J_PASSWORD;\n\nif (!neo4jUrl) throw new Error('NEO4J_HTTP_URL env var not set in n8n container');\nif (!neo4jUser) throw new Error('NEO4J_USER env var not set in n8n container');\nif (!neo4jPassword) throw new Error('NEO4J_PASSWORD env var not set in n8n container');\n\nconst authHeader =\n  'Basic ' + Buffer.from(`${neo4jUser}:${neo4jPassword}`).toString('base64');\n\nconst statements = [];\n\n// 1. MERGE Document node\nstatements.push({\n  statement: [\n    'MERGE (d:Document {id: $doc_id})',\n    'ON CREATE SET',\n    '  d.title = $title,',\n    '  d.source_type = $source_type,',\n    '  d.source_url = $source_url,',\n    '  d.notebook = $notebook,',\n    '  d.ingested_at = datetime($ingested_at)',\n    'ON MATCH SET d.title = $title',\n    'RETURN d.id AS doc_id',\n  ].join('\\n'),\n  parameters: {\n    doc_id: item.doc_id,\n    title: item.title,\n    source_type: item.source_type,\n    source_url: item.source_url || '',\n    notebook: item.notebook,\n    ingested_at: item.ingested_at,\n  },\n});\n\n// 2. MERGE Chunk node + PART_OF edge to Document\nstatements.push({\n  statement: [\n    'MATCH (d:Document {id: $doc_id})',\n    'MERGE (ch:Chunk {id: $chunk_id})',\n    'ON CREATE SET',\n    '  ch.chunk_index = $chunk_index,',\n    '  ch.notebook = $notebook,',\n    '  ch.ingested_at = datetime($ingested_at)',\n    'MERGE (ch)-[:PART_OF]->(d)',\n    'RETURN ch.id AS chunk_id',\n  ].join('\\n'),\n  parameters: {\n    doc_id: item.doc_id,\n    chunk_id: item.chunk_id,\n    chunk_index: item.chunk_index,\n    notebook: item.notebook,\n    ingested_at: item.ingested_at,\n  },\n});\n\n// 3. MERGE Concept nodes + MENTIONS edges from Chunk\nfor (const concept of (item.graph_concepts || [])) {\n  statements.push({\n    statement: [\n      'MERGE (c:Concept {name: $name})',\n      'ON CREATE SET c.notebooks = [$notebook]',\n      'ON MATCH SET c.notebooks =',\n      '  CASE WHEN $notebook IN c.notebooks',\n      '       THEN c.notebooks',\n      '       ELSE c.notebooks + [$notebook] END',\n      'WITH c',\n      'MATCH (ch:Chunk {id: $chunk_id})',\n      'MERGE (ch)-[:MENTIONS]->(c)',\n    ].join('\\n'),\n    parameters: {\n      name: concept,\n      notebook: item.notebook,\n      chunk_id: item.chunk_id,\n    },\n  });\n}\n\n// 4. MERGE RELATED_TO edges between concepts\nfor (const rel of (item.graph_relationships || [])) {\n  const from = String(rel.from).toLowerCase().trim();\n  const to = String(rel.to).toLowerCase().trim();\n  if (!from || !to || from === to) continue;\n  statements.push({\n    statement: [\n      'MERGE (a:Concept {name: $from})',\n      'MERGE (b:Concept {name: $to})',\n      'MERGE (a)-[r:RELATED_TO]->(b)',\n      'ON CREATE SET r.weight = $weight',\n      'ON MATCH SET r.weight = (r.weight + $weight) / 2.0',\n    ].join('\\n'),\n    parameters: { from, to, weight: rel.weight || 1.0 },\n  });\n}\n\n// 5. MERGE Event nodes + REFERENCES edges from Chunk\nfor (const event of (item.graph_events || [])) {\n  const eventName = String(event.name).trim();\n  if (!eventName) continue;\n  statements.push({\n    statement: [\n      'MERGE (e:Event {name: $name, notebook: $notebook})',\n      'ON CREATE SET e.date = $date',\n      'WITH e',\n      'MATCH (ch:Chunk {id: $chunk_id})',\n      'MERGE (ch)-[:REFERENCES]->(e)',\n    ].join('\\n'),\n    parameters: {\n      name: eventName,\n      notebook: item.notebook,\n      date: event.date || null,\n      chunk_id: item.chunk_id,\n    },\n  });\n}\n\ntry {\n  const res = await $helpers.httpRequest({\n    method: 'POST',\n    url: `${neo4jUrl}/db/neo4j/tx/commit`,\n    headers: {\n      'Content-Type': 'application/json',\n      Accept: 'application/json',\n      Authorization: authHeader,\n    },\n    body: JSON.stringify({ statements }),\n  });\n\n  const parsed = typeof res === 'string' ? JSON.parse(res) : res;\n  if (parsed.errors && parsed.errors.length > 0) {\n    throw new Error(`Neo4j errors: ${JSON.stringify(parsed.errors)}`);\n  }\n} catch (err) {\n  // Re-throw — Neo4j write failure must not be swallowed (CONSTITUTION III.3)\n  throw new Error(`[WriteNeo4j] chunk ${item.chunk_id}: ${err.message}`);\n}\n\nreturn [{ json: item }];"
+        "jsCode": "// Write Document, Chunk, Concept, and Event nodes to Neo4j via HTTP transactional API.\n// All writes use MERGE to ensure idempotency (Spec #2 AC: second ingest = no duplicates).\n// Neo4j HTTP endpoint: POST /db/neo4j/tx/commit with { statements: [{statement, parameters}] }\nconst item = $input.item.json;\n\nconst neo4jUrl = $env['NEO4J_HTTP_URL'];\nconst neo4jUser = $env['NEO4J_USER'];\nconst neo4jPassword = $env['NEO4J_PASSWORD'];\n\nif (!neo4jUrl) throw new Error('NEO4J_HTTP_URL env var not set in n8n container');\nif (!neo4jUser) throw new Error('NEO4J_USER env var not set in n8n container');\nif (!neo4jPassword) throw new Error('NEO4J_PASSWORD env var not set in n8n container');\n\nconst authHeader =\n  'Basic ' + Buffer.from(`${neo4jUser}:${neo4jPassword}`).toString('base64');\n\nconst statements = [];\n\n// 1. MERGE Document node\nstatements.push({\n  statement: [\n    'MERGE (d:Document {id: $doc_id})',\n    'ON CREATE SET',\n    '  d.title = $title,',\n    '  d.source_type = $source_type,',\n    '  d.source_url = $source_url,',\n    '  d.notebook = $notebook,',\n    '  d.ingested_at = datetime($ingested_at)',\n    'ON MATCH SET d.title = $title',\n    'RETURN d.id AS doc_id',\n  ].join('\\n'),\n  parameters: {\n    doc_id: item.doc_id,\n    title: item.title,\n    source_type: item.source_type,\n    source_url: item.source_url || '',\n    notebook: item.notebook,\n    ingested_at: item.ingested_at,\n  },\n});\n\n// 2. MERGE Chunk node + PART_OF edge to Document\nstatements.push({\n  statement: [\n    'MATCH (d:Document {id: $doc_id})',\n    'MERGE (ch:Chunk {id: $chunk_id})',\n    'ON CREATE SET',\n    '  ch.chunk_index = $chunk_index,',\n    '  ch.notebook = $notebook,',\n    '  ch.ingested_at = datetime($ingested_at)',\n    'MERGE (ch)-[:PART_OF]->(d)',\n    'RETURN ch.id AS chunk_id',\n  ].join('\\n'),\n  parameters: {\n    doc_id: item.doc_id,\n    chunk_id: item.chunk_id,\n    chunk_index: item.chunk_index,\n    notebook: item.notebook,\n    ingested_at: item.ingested_at,\n  },\n});\n\n// 3. MERGE Concept nodes + MENTIONS edges from Chunk\nfor (const concept of (item.graph_concepts || [])) {\n  statements.push({\n    statement: [\n      'MERGE (c:Concept {name: $name})',\n      'ON CREATE SET c.notebooks = [$notebook]',\n      'ON MATCH SET c.notebooks =',\n      '  CASE WHEN $notebook IN c.notebooks',\n      '       THEN c.notebooks',\n      '       ELSE c.notebooks + [$notebook] END',\n      'WITH c',\n      'MATCH (ch:Chunk {id: $chunk_id})',\n      'MERGE (ch)-[:MENTIONS]->(c)',\n    ].join('\\n'),\n    parameters: {\n      name: concept,\n      notebook: item.notebook,\n      chunk_id: item.chunk_id,\n    },\n  });\n}\n\n// 4. MERGE RELATED_TO edges between concepts\nfor (const rel of (item.graph_relationships || [])) {\n  const from = String(rel.from).toLowerCase().trim();\n  const to = String(rel.to).toLowerCase().trim();\n  if (!from || !to || from === to) continue;\n  statements.push({\n    statement: [\n      'MERGE (a:Concept {name: $from})',\n      'MERGE (b:Concept {name: $to})',\n      'MERGE (a)-[r:RELATED_TO]->(b)',\n      'ON CREATE SET r.weight = $weight',\n      'ON MATCH SET r.weight = (r.weight + $weight) / 2.0',\n    ].join('\\n'),\n    parameters: { from, to, weight: rel.weight || 1.0 },\n  });\n}\n\n// 5. MERGE Event nodes + REFERENCES edges from Chunk\nfor (const event of (item.graph_events || [])) {\n  const eventName = String(event.name).trim();\n  if (!eventName) continue;\n  statements.push({\n    statement: [\n      'MERGE (e:Event {name: $name, notebook: $notebook})',\n      'ON CREATE SET e.date = $date',\n      'WITH e',\n      'MATCH (ch:Chunk {id: $chunk_id})',\n      'MERGE (ch)-[:REFERENCES]->(e)',\n    ].join('\\n'),\n    parameters: {\n      name: eventName,\n      notebook: item.notebook,\n      date: event.date || null,\n      chunk_id: item.chunk_id,\n    },\n  });\n}\n\ntry {\n  const res = await helpers.httpRequest({\n    method: 'POST',\n    url: `${neo4jUrl}/db/neo4j/tx/commit`,\n    headers: {\n      'Content-Type': 'application/json',\n      Accept: 'application/json',\n      Authorization: authHeader,\n    },\n    body: JSON.stringify({ statements }),\n  });\n\n  const parsed = typeof res === 'string' ? JSON.parse(res) : res;\n  if (parsed.errors && parsed.errors.length > 0) {\n    throw new Error(`Neo4j errors: ${JSON.stringify(parsed.errors)}`);\n  }\n} catch (err) {\n  // Re-throw \u2014 Neo4j write failure must not be swallowed (CONSTITUTION III.3)\n  throw new Error(`[WriteNeo4j] chunk ${item.chunk_id}: ${err.message}`);\n}\n\nreturn { json: item };"
       }
     },
     {
@@ -79,10 +97,13 @@
       "name": "Embed and Store",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1640, 300],
+      "position": [
+        1640,
+        300
+      ],
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// 1. Embed chunk text via Kong /notebooklm/embed (nomic-embed-text, 768-dim).\n// 2. Upsert to Qdrant with chunk_id as point ID and neo4j_chunk_id in payload.\n//\n// chunk_id == Qdrant point ID == Neo4j Chunk.id  ← the cross-store link (Spec #2 AC)\nconst item = $input.item.json;\n\nconst kongUrl = process.env.KONG_PROXY_URL;\nconst qdrantUrl = process.env.QDRANT_URL;\n\nif (!kongUrl) throw new Error('KONG_PROXY_URL env var not set in n8n container');\nif (!qdrantUrl) throw new Error('QDRANT_URL env var not set in n8n container');\n\n// ── Step 1: embed ──────────────────────────────────────────────────────────\nlet vector;\ntry {\n  const embedRes = await $helpers.httpRequest({\n    method: 'POST',\n    url: `${kongUrl}/notebooklm/embed`,\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({\n      model: 'nomic-embed-text',\n      input: item.chunk_text,\n    }),\n  });\n\n  const parsed = typeof embedRes === 'string' ? JSON.parse(embedRes) : embedRes;\n  // Handle Ollama native format and OpenAI-compatible format\n  vector =\n    parsed?.embeddings?.[0] ||\n    parsed?.data?.[0]?.embedding ||\n    parsed?.embedding;\n\n  if (!vector || !Array.isArray(vector) || vector.length !== 768) {\n    throw new Error(\n      `Expected 768-dim vector, got: ${JSON.stringify(parsed).substring(0, 200)}`\n    );\n  }\n} catch (err) {\n  throw new Error(`[Embed] chunk ${item.chunk_id}: ${err.message}`);\n}\n\n// ── Step 2: upsert to Qdrant ───────────────────────────────────────────────\ntry {\n  const qdrantRes = await $helpers.httpRequest({\n    method: 'PUT',\n    url: `${qdrantUrl}/collections/${item.notebook}/points`,\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({\n      points: [{\n        id: item.chunk_id,\n        vector,\n        payload: {\n          chunk_text: item.chunk_text,\n          summary: item.summary || '',\n          tags: item.tags || [],\n          title: item.title,\n          source_type: item.source_type,\n          source_url: item.source_url || '',\n          chunk_index: item.chunk_index,\n          total_chunks: item.total_chunks,\n          ingested_at: item.ingested_at,\n          neo4j_chunk_id: item.chunk_id,\n        },\n      }],\n    }),\n  });\n\n  const parsed = typeof qdrantRes === 'string' ? JSON.parse(qdrantRes) : qdrantRes;\n  if (parsed?.status !== 'ok') {\n    throw new Error(`Qdrant upsert failed: ${JSON.stringify(parsed)}`);\n  }\n} catch (err) {\n  throw new Error(`[Qdrant] chunk ${item.chunk_id}: ${err.message}`);\n}\n\nreturn [{\n  json: {\n    chunk_id: item.chunk_id,\n    chunk_index: item.chunk_index,\n    doc_id: item.doc_id,\n    notebook: item.notebook,\n    concepts_count: (item.graph_concepts || []).length,\n  }\n}];"
+        "jsCode": "// 1. Embed chunk text via Kong /notebooklm/embed (nomic-embed-text, 768-dim).\n// 2. Upsert to Qdrant with chunk_id as point ID and neo4j_chunk_id in payload.\n//\n// chunk_id == Qdrant point ID == Neo4j Chunk.id  \u2190 the cross-store link (Spec #2 AC)\nconst item = $input.item.json;\n\nconst chatUrl = $env['CHAT_ENDPOINT'];\nconst embedUrl = $env['EMBED_ENDPOINT'];\nconst qdrantUrl = $env['QDRANT_URL'];\n\nif (!embedUrl) throw new Error('EMBED_ENDPOINT env var not set in n8n container');\nif (!qdrantUrl) throw new Error('QDRANT_URL env var not set in n8n container');\n\n// \u2500\u2500 Step 1: embed \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nlet vector;\ntry {\n  const embedRes = await helpers.httpRequest({\n    method: 'POST',\n    url: `${embedUrl}`,\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({\n      model: 'nomic-embed-text',\n      input: item.chunk_text,\n    }),\n  });\n\n  const parsed = typeof embedRes === 'string' ? JSON.parse(embedRes) : embedRes;\n  // Handle Ollama native format and OpenAI-compatible format\n  vector =\n    parsed?.embeddings?.[0] ||\n    parsed?.data?.[0]?.embedding ||\n    parsed?.embedding;\n\n  if (!vector || !Array.isArray(vector) || vector.length !== 768) {\n    throw new Error(\n      `Expected 768-dim vector, got: ${JSON.stringify(parsed).substring(0, 200)}`\n    );\n  }\n} catch (err) {\n  throw new Error(`[Embed] chunk ${item.chunk_id}: ${err.message}`);\n}\n\n// \u2500\u2500 Step 2: upsert to Qdrant \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\ntry {\n  const qdrantRes = await helpers.httpRequest({\n    method: 'PUT',\n    url: `${qdrantUrl}/collections/${item.notebook}/points`,\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({\n      points: [{\n        id: item.chunk_id,\n        vector,\n        payload: {\n          chunk_text: item.chunk_text,\n          summary: item.summary || '',\n          tags: item.tags || [],\n          title: item.title,\n          source_type: item.source_type,\n          source_url: item.source_url || '',\n          chunk_index: item.chunk_index,\n          total_chunks: item.total_chunks,\n          ingested_at: item.ingested_at,\n          neo4j_chunk_id: item.chunk_id,\n        },\n      }],\n    }),\n  });\n\n  const parsed = typeof qdrantRes === 'string' ? JSON.parse(qdrantRes) : qdrantRes;\n  if (parsed?.status !== 'ok') {\n    throw new Error(`Qdrant upsert failed: ${JSON.stringify(parsed)}`);\n  }\n} catch (err) {\n  throw new Error(`[Qdrant] chunk ${item.chunk_id}: ${err.message}`);\n}\n\nreturn {\n  json: {\n    chunk_id: item.chunk_id,\n    chunk_index: item.chunk_index,\n    doc_id: item.doc_id,\n    notebook: item.notebook,\n    concepts_count: (item.graph_concepts || []).length,\n  }\n};"
       }
     },
     {
@@ -90,7 +111,10 @@
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1880, 300],
+      "position": [
+        1880,
+        300
+      ],
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ status: 'ok', chunks_ingested: $input.all().length, doc_id: $input.first().json.doc_id, notebook: $input.first().json.notebook }) }}",
@@ -103,37 +127,79 @@
   "connections": {
     "Ingest Webhook": {
       "main": [
-        [{ "node": "Normalize Input", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Normalize Input": {
       "main": [
-        [{ "node": "Split Into Chunks", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Split Into Chunks",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Split Into Chunks": {
       "main": [
-        [{ "node": "Summarize Chunk", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Summarize Chunk",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Summarize Chunk": {
       "main": [
-        [{ "node": "Extract Graph Entities", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Extract Graph Entities",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Extract Graph Entities": {
       "main": [
-        [{ "node": "Write to Neo4j", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Write to Neo4j",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Write to Neo4j": {
       "main": [
-        [{ "node": "Embed and Store", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Embed and Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Embed and Store": {
       "main": [
-        [{ "node": "Respond to Webhook", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   }
