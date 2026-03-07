@@ -8,9 +8,9 @@
 
 ## Current Status
 
-**Phase:** Spec #2 written → red phase next
+**Phase:** Spec #2 in progress — n8n not executing Code nodes; blocked on owner setup
 **Last updated:** 2026-03-07
-**Next action:** Create branch `feat/3-n8n-graph-extraction` off dev, write failing integration tests (red phase) for Spec #2
+**Next action:** Fix n8n owner account setup so Code nodes execute; then Spec #2 integration tests go green. Branch: `feat/3-n8n-graph-extraction`
 
 ---
 
@@ -39,15 +39,6 @@
 - [x] `docs/specs/SPEC-001-neo4j-infrastructure.md` — spec committed
 - [x] GitHub Issue #1 created, PR #2 open
 
-### Ingest Pipeline (n8n — foundation)
-- [x] `n8n/workflows/ingest-pipeline.json` — importable n8n workflow
-  - Source routing: PDF, URL, Markdown, Google Drive
-  - Chunking: 500 words, 50-word overlap
-  - Auto-tag + summarize via llama3.2
-  - Embed via nomic-embed-text
-  - Store in Qdrant with metadata payload
-  - ⚠️ Does NOT yet include graph extraction step (Neo4j) — needs update
-
 ### Kong AI Gateway (foundation)
 - [x] `kong/kong-ollama.yaml` — decK config
   - `/notebooklm/embed` → Ollama nomic-embed-text (ai-proxy, http-log)
@@ -58,7 +49,17 @@
 
 ## In Progress
 
-Nothing — spec writing must happen before implementation resumes.
+### Spec #2 — n8n Graph Extraction Step (branch: feat/3-n8n-graph-extraction)
+- [x] Red phase: 8 failing integration tests committed (test_graph_extraction.py)
+- [x] `n8n/workflows/ingest-pipeline.json` — 8-node pipeline written (graph extraction + UUID IDs + Neo4j writes + Qdrant upsert)
+- [x] `docker-compose.yml` — n8n env vars, Ollama TCP healthcheck, N8N_SECURE_COOKIE=false, N8N_RUNNERS_ENABLED=true
+- [x] `.env.example` — NEO4J_HTTP_URL, CHAT_ENDPOINT, EMBED_ENDPOINT, TEST_N8N_WEBHOOK_URL added
+- [x] Stack running: neo4j, qdrant, ollama, n8n (no kong — layered in later)
+- [x] Workflow imported into n8n via CLI, task runner registered
+- [ ] **BLOCKED**: n8n Code nodes not executing — webhook returns 200 immediately with no body
+  - Root cause: n8n owner account not set up; `/rest/owner/setup` returns 500 body-parse error
+  - Must resolve before Spec #2 tests can go green
+- [ ] 8 Spec #2 integration tests still failing (expected — green phase incomplete)
 
 ---
 
@@ -68,12 +69,7 @@ Nothing — spec writing must happen before implementation resumes.
 
 **Spec #1 — Neo4j Infrastructure** ✅ DONE (PR #2)
 
-**Spec #2 — n8n Graph Extraction Step** (GitHub Issue #3, docs/specs/SPEC-002-n8n-graph-extraction.md)
-- Add graph extraction node to ingest pipeline after summarization
-- llama3.2 prompt returns `{ concepts[], relationships[], events[] }` JSON
-- Write to Neo4j: Document, Chunk, Concept nodes + edges
-- Fix Qdrant point IDs to use UUIDs (link to neo4j_chunk_id)
-- Acceptance: ingest markdown → verify Concept nodes in Neo4j
+**Spec #2 — n8n Graph Extraction Step** ◐ IN PROGRESS (see above)
 
 **Spec #3 — Query Service (FastAPI + GraphRAG)**
 - `query/models.py` — Pydantic v2: QueryRequest, QueryResponse, Citation
@@ -160,13 +156,21 @@ Nothing — spec writing must happen before implementation resumes.
 | 2026-03-07 | Spec-driven development + TDD | Quality, testability, and traceability from day one |
 | 2026-03-07 | Jest (TS) + pytest (Python) | Best-in-class for each language; separate concerns cleanly |
 | 2026-03-07 | All four test layers (unit/integration/contract/e2e) | Each layer catches different failure modes; contract tests protect MCP schema stability |
+| 2026-03-07 | CHAT_ENDPOINT / EMBED_ENDPOINT env vars in n8n | Decouples n8n from Kong during dev; set to Ollama direct (http://ollama:11434/api/*) until Kong is layered in (Spec #5) |
+| 2026-03-07 | Kong not deployed until core stack is stable | User decision: get neo4j+qdrant+ollama+n8n working first; add Kong as Spec #5 |
+| 2026-03-07 | Ollama healthcheck uses TCP not curl | Ollama image has no curl; use bash TCP check same as Qdrant |
+| 2026-03-07 | N8N_SECURE_COOKIE=false for local dev | n8n requires HTTPS for secure cookies; HTTP-only local dev needs this off |
+| 2026-03-07 | N8N_RUNNERS_ENABLED=true required | n8n 1.90.2 needs task runners for Code nodes to execute; without it, Code nodes silently skip |
 
 ---
 
 ## Known Issues / Watch Out For
 
-- **Qdrant point IDs** must be unsigned integers or UUIDs. Current n8n workflow uses string composite IDs — fix in Spec #2 to use `crypto.randomUUID()`. UUID also becomes Neo4j Chunk `id`.
-- **llama3.2 JSON reliability** — graph extraction prompt may produce malformed JSON on edge cases. Add retry logic + JSON validation in n8n Code node. Consider wrapping with Zod parse + fallback.
+- **n8n owner setup blocked** — `/rest/owner/setup` returns HTTP 500 "Failed to parse request body" even with N8N_SECURE_COOKIE=false. Start next session by reading the n8n 1.90.2 owner controller source to get the exact expected request body before touching anything else.
+- **n8n Code nodes require owner** — imported workflows do not execute unless the n8n instance has a configured owner. `update:workflow --active=true` is deprecated; use `publish:workflow --id=<id>` instead.
+- **n8n workflow not executing** — webhook returns HTTP 200 immediately with no body; no execution logs in container. Root cause: no owner credentials set, so n8n rejects execution silently.
+- **Qdrant point IDs** — fixed in Spec #2 workflow (crypto.randomUUID()). Not yet verified green.
+- **llama3.2 JSON reliability** — graph extraction prompt may produce malformed JSON on edge cases. Retry logic + JSON validation implemented in n8n Code node with fallback to empty arrays.
 - **llama3.2 CPU speed** — ~5-10 tok/s on CPU. Ingest is async so acceptable. For interactive query, cap `max_tokens` to keep latency reasonable.
 - **Neo4j Community Edition** — no multiple databases. All notebooks share one database, scoped by node properties. Fine for this design.
 - **Neo4j memory** — tune `NEO4J_server_memory_heap_max__size` and `pagecache_size` in docker-compose for home lab constraints. Start with 1G heap, 512M pagecache.
@@ -197,6 +201,20 @@ Nothing — spec writing must happen before implementation resumes.
 - Decided on Neo4j + GraphRAG hybrid retrieval
 - Designed all node types, relationship types, scoping strategy
 - Established re-ranking formula (60% vector, 40% graph)
+
+### 2026-03-07 — Spec #2 session (graph extraction)
+- Branch `feat/3-n8n-graph-extraction` created from dev
+- Red phase: 8 failing integration tests written for all Spec #2 ACs
+- Green phase: `n8n/workflows/ingest-pipeline.json` created (8 nodes, full graph extraction pipeline)
+- docker-compose.yml updated: Ollama TCP healthcheck, n8n env vars, N8N_SECURE_COOKIE=false, N8N_RUNNERS_ENABLED=true
+- .env.example updated: NEO4J_HTTP_URL, CHAT_ENDPOINT, EMBED_ENDPOINT, TEST_N8N_WEBHOOK_URL
+- Stack started: neo4j, qdrant, ollama, n8n (no kong — deferred)
+- Workflow imported via `docker exec n8n import:workflow --input=...`
+- **BLOCKER**: n8n Code nodes not executing — `/rest/owner/setup` returns 500
+- 21/21 Spec #1 tests green; 8/8 Spec #2 tests red (pipeline not running)
+- `update:workflow` is deprecated in n8n 1.90.2 — use `publish:workflow --id=` instead
+- IMPORTANT: never use --remove-orphans flag; stops containers from other compose projects
+- httpx>=0.27 added to query/requirements-dev.txt
 
 ### 2026-03-07 — MCP server + constitution session
 - Designed full MCP server architecture (7 tools, dual transport, TypeScript)
