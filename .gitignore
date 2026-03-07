@@ -1,0 +1,70 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Node / TypeScript
+node_modules/
+dist/
+build/
+*.js.map
+.npm
+.eslintcache
+.tsbuildinfo
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+*.egg-info/
+dist/
+*.egg
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# Docker volumes / runtime data
+volumes/
+data/
+neo4j/data/
+neo4j/logs/
+neo4j/import/
+neo4j/plugins/
+qdrant/storage/
+ollama/models/
+n8n/data/
+
+# Kong
+kong/declarative/.token
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test artifacts
+coverage/
+junit.xml
+test-results/
+
+# Audio output
+*.mp3
+*.wav
+*.ogg
+audio_output/
