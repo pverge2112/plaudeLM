@@ -1,0 +1,10 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "integration: mark test as requiring real running services (Qdrant, Neo4j, Kong)",
+]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
