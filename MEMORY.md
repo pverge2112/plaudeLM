@@ -8,9 +8,9 @@
 
 ## Current Status
 
-**Phase:** Spec #4 (MCP Server) complete ✅ — on branch `001-mcp-server`, 2 commits, ready for PR to dev
-**Last updated:** 2026-03-07
-**Next action:** Open PR for `001-mcp-server` → dev. Then Spec #5 (Kong MCP Gateway Route).
+**Phase:** Spec #5 (Kong MCP Gateway) spec + plan written on `002-kong-mcp-gateway`. PR #8 (`001-mcp-server` → dev) open and ready to merge. Decision: defer Kong AI/MCP proxy plugins; get full stack running first.
+**Last updated:** 2026-03-08
+**Next action:** Merge PR #8. Then on `002-kong-mcp-gateway`: create `kong/kong.yaml`, start query + MCP services via docker-compose, run MCP integration tests against live stack.
 
 ---
 
@@ -46,6 +46,22 @@
 - [x] docker-compose.yml: Ollama TCP healthcheck, n8n task runner env vars
 - [x] **29/29 integration tests green** (21 Spec #1 + 8 Spec #2)
 - [x] GitHub Issue #3 created, PR #4 merged → dev
+
+### Spec #6 — Full Test Suite (CLOSED ✅ — 2026-03-08, committed on 001-mcp-server, in PR #8)
+- [x] `mcp/tests/integration/tools/` — 5 files, 13 integration tests (skip gracefully when services down)
+- [x] `tests/e2e/` — 3 files, 9 e2e tests (kong, personal, music)
+- [x] `mcp/jest.config.cjs` + `mcp/tsconfig.test.json` + `mcp/package.json` — e2e project wired
+- [x] **94/94 tests green** (72 unit+contract + 13 integration + 9 e2e)
+
+### Spec #5 — Kong MCP Gateway (branch 002-kong-mcp-gateway, spec+plan written)
+- [x] `specs/002-kong-mcp-gateway/spec.md` — 3 user stories, 11 FRs, 6 SCs, checklist green
+- [x] `specs/002-kong-mcp-gateway/plan.md` — constitution check, 5-phase plan, structure
+- [x] `specs/002-kong-mcp-gateway/research.md` — 8 research decisions
+- [x] `docker-compose.yml` — `notebooklm-mcp` service added; `query` host port 8000→8081 (port conflict fix)
+- [x] `.env.example` — `QUERY_SERVICE_URL` fixed (8080→8000 internal port)
+- ⚠️ `kong/kong.yaml` — NOT yet created (empty directory); must be created before `docker compose up`
+- ⚠️ MCP integration tests not yet run against live stack (query service not yet started in Docker)
+- ⚠️ Decision: defer Kong AI/MCP proxy plugins (`ai-mcp-proxy`) — get core stack working first
 
 ### Spec #4 — MCP Server (branch 001-mcp-server, ready for PR)
 - [x] Full speckit workflow: specify → plan → tasks → analyze → implement
@@ -86,29 +102,13 @@ Nothing in progress.
 ### SPEC WRITING FIRST — create GitHub Issues before any implementation
 
 **~~Spec #4 — MCP Server~~** (beads: plaudeLM-lk7 CLOSED ✅ — see Completed above)
+**~~Spec #6 — Full Test Suite~~** (CLOSED ✅ — see Completed above)
 
-**Spec #5 — Kong MCP Gateway Route**
-- `mcp/src/index.ts` — entry point, transport selection (stdio/sse)
-- `mcp/src/server.ts` — tool registry
-- `mcp/src/tools/` — all 7 tools (ingest, query, search_concepts, add_relationship, list_notebooks, get_document_graph, audio_overview)
-- `mcp/src/clients/` — FastAPI, Qdrant, Neo4j clients
-- `mcp/src/config.ts` — env var validation (fail-fast)
-- `mcp/Dockerfile`
-- Add to `docker-compose.yml`
-- `claude_desktop_config.json` snippet
-- Acceptance: all 7 tools callable from Claude Desktop via stdio
-
-**Spec #5 — Kong MCP Gateway Route**
-- Add `/notebooklm/mcp/*` route to `kong/kong-ollama.yaml`
-- Plugins: ai-mcp-proxy, key-auth, http-log
-- Add notebooklm-mcp service to docker-compose.yml (deferred from Spec #4)
-- Acceptance: tool call via Kong SSE returns same result as stdio
-
-**Spec #6 — Test Suite**
-- MCP: Jest unit + integration + contract tests for all 7 tools
-- Query: pytest unit + integration tests for rag, graph, hybrid modules
-- E2E: 3 tests (one per notebook) — ingest → query → verify citation
-- Acceptance: `npm test` and `pytest` both pass green
+**Spec #5 — Kong MCP Gateway Route** (beads: plaudeLM-y0x, P2 — branch 002-kong-mcp-gateway)
+- Spec, plan, research written ✅
+- Remaining: create `kong/kong.yaml`, run `docker compose up -d query notebooklm-mcp`, run MCP integration tests
+- Decision: defer `ai-mcp-proxy` plugin until core stack is verified working; use standard Kong proxying first
+- Acceptance: tool call via Kong SSE returns same result as stdio; all integration tests green
 
 **Spec #7 — Audio Overview** (beads: plaudeLM-69j, P3)
 - `query/audio.py` — llama3.2 podcast script generation (host + guest format)
@@ -180,6 +180,12 @@ Nothing in progress.
 | 2026-03-07 | pythonpath=["."] required in pyproject.toml | pytest with unit __init__.py does not auto-add rootdir to sys.path; must be explicit |
 | 2026-03-07 | module-scoped pytest fixtures cannot use function-scoped monkeypatch | Use os.environ.setdefault() in module-scoped fixtures; monkeypatch only in function-scoped tests |
 | 2026-03-07 | /query endpoint gracefully degrades on Kong/Ollama failure | Returns empty results rather than 502 when embedding/graph calls fail; only answer-generation step raises 502 |
+| 2026-03-08 | query host port changed from 8000 to 8081 in docker-compose | Kong proxy also uses host port 8000; conflict prevents both from starting; MCP server uses internal Docker network URL (http://query:8000), no change to env vars |
+| 2026-03-08 | kong/kong.yaml (not kong/kong-ollama.yaml) is the required filename | docker-compose mounts ./kong:/kong/declarative and KONG_DECLARATIVE_CONFIG references kong.yaml; the kong-ollama.yaml name in earlier notes was never the actual filename |
+| 2026-03-08 | Kong AI/MCP proxy plugins deferred | User decision: get core stack (query + MCP server + basic Kong routing) working end-to-end before adding ai-mcp-proxy, ai-rate-limiting-advanced, ai-pii-sanitizer plugins |
+| 2026-03-08 | MCP SSE uses two HTTP paths | GET /sse (SSE connection) + POST /messages?sessionId=X (client→server); both must be routed by Kong; health at GET /health |
+| 2026-03-08 | Kong DB-less mode: config reload via POST /config | Edit kong/kong.yaml → curl -sX POST http://localhost:8001/config -F config=@kong/kong.yaml; deck validate for syntax; deck sync is ephemeral for DB-less Kong |
+| 2026-03-08 | query/venv required for local pytest | No system-level pytest; create venv + install requirements.txt + requirements-dev.txt before running pytest on host |
 
 ---
 
@@ -198,14 +204,31 @@ Nothing in progress.
 - **PDF ingest via n8n** — requires multipart/form-data (binary), not JSON. Document in MCP `ingest_document` error messages.
 - **MCP transport switching** — when `MCP_TRANSPORT=sse`, stdio handler must not be initialized. Validate at startup in `config.ts`.
 - **Kong MCP Gateway** — `ai-mcp-proxy` plugin config needs to match the MCP server's SSE endpoint path exactly. Test with `deck diff` before `deck sync`.
-- **mcp/ exists** — Spec #4 complete. `npm test` runs 72 tests in 0.92s. Integration tests require live services.
-- **tests/e2e/ does not exist yet** — Spec #6 (Test Suite e2e) is next after Spec #5.
-- **docker-compose.yml missing notebooklm-mcp service** — deferred to Spec #5.
+- **mcp/ exists** — Spec #4 complete. `npm test` runs 72 unit+contract tests. Integration + e2e tests in PR #8 (001-mcp-server); run `npm run test:integration` and `npm run test:e2e` once services are live.
+- **tests/e2e/ exists** — on `001-mcp-server` branch (PR #8); will be on `dev` after merge. Not yet on `002-kong-mcp-gateway` — rebase after PR #8 merges.
+- **kong/ directory is empty** — `kong/kong.yaml` must be created before `docker compose up` (Kong will fail to start without it). File must be at `kong/kong.yaml` (not `kong-ollama.yaml`).
+- **query service not yet running in Docker** — start with `docker compose up -d query` after creating `kong/kong.yaml`. Host port is now 8081 (was 8000).
+- **notebooklm-mcp service added to docker-compose.yml** — uncommented on `002-kong-mcp-gateway`; defaults to `MCP_TRANSPORT=sse`. For local Claude Desktop (stdio), run the MCP server directly with `MCP_TRANSPORT=stdio node dist/index.js`.
 - **audio_overview FastAPI `/audio-overview` endpoint not implemented** — Spec #7. The MCP tool exists and delegates to FastAPI; the FastAPI side is not yet built.
+- **query/venv** — must be created locally before running pytest: `python3 -m venv venv && ./venv/bin/pip install -r requirements.txt -r requirements-dev.txt`
+- **Stale branches cleaned** — deleted: feat/1-neo4j-infrastructure, feat/3-n8n-graph-extraction, feat/5-query-service, feat/7-mcp-server, spec/1-neo4j-infrastructure (all fully merged to dev)
 
 ---
 
 ## Session Notes
+
+### 2026-03-08 — Spec #5 spec/plan + stack prep session
+- Ran speckit.analyze on 001-mcp-server: 10 findings, no blockers, all artifact-level (not implementation)
+- Committed Spec #6 integration + e2e tests on 001-mcp-server (c81e0f5); opened PR #8
+- Cleaned up 5 stale local branches + 3 remote branches (all fully merged to dev)
+- Created 002-kong-mcp-gateway branch; wrote spec.md, plan.md, research.md
+- Key discovery: kong/ directory was empty — kong.yaml was never created; must create before Kong starts
+- Key discovery: query and kong both had 8000:8000 host port binding — fixed in docker-compose (query → 8081:8000)
+- Uncommented notebooklm-mcp service in docker-compose.yml (SSE mode, depends_on query)
+- User decision: defer ai-mcp-proxy plugin; get core stack working first
+- Test runs: 72/72 MCP unit+contract ✅; 30/30 query unit ✅; 29/29 query integration ✅
+- Session ended before `docker compose up` — that's next session's starting point
+- NOT merged: 002 branch not pushed yet; PR #8 not yet merged
 
 ### 2026-03-07 — Spec #4 MCP Server implementation
 - Full speckit workflow (specify → plan → tasks → analyze → implement) run for first time
