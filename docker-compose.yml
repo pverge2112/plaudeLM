@@ -151,7 +151,7 @@ services:
       NEO4J_PASSWORD: ${NEO4J_PASSWORD}
       KONG_PROXY_URL: ${KONG_PROXY_URL}
     ports:
-      - "8000:8000"
+      - "8081:8000"   # host 8081 avoids conflict with Kong proxy on 8000
     depends_on:
       qdrant:
         condition: service_healthy
@@ -169,25 +169,32 @@ services:
 
   # ---------------------------------------------------------------------------
   # MCP Server — TypeScript MCP server (Spec #4)
-  # Stub: build context not yet available
+  # Run with MCP_TRANSPORT=sse for Docker; use stdio for local Claude Desktop
   # ---------------------------------------------------------------------------
-  # notebooklm-mcp:
-  #   build: ./mcp
-  #   container_name: notebooklm-mcp
-  #   image: notebooklm-mcp:latest
-  #   environment:
-  #     MCP_TRANSPORT: ${MCP_TRANSPORT:-stdio}
-  #     MCP_PORT: ${MCP_PORT:-3000}
-  #     QUERY_SERVICE_URL: ${QUERY_SERVICE_URL}
-  #     QDRANT_URL: ${QDRANT_URL}
-  #     NEO4J_URI: ${NEO4J_URI}
-  #     NEO4J_USER: ${NEO4J_USER}
-  #     NEO4J_PASSWORD: ${NEO4J_PASSWORD}
-  #     N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL}
-  #   ports:
-  #     - "3000:3000"
-  #   depends_on:
-  #     - query
+  notebooklm-mcp:
+    build: ./mcp
+    container_name: notebooklm-mcp
+    environment:
+      MCP_TRANSPORT: ${MCP_TRANSPORT:-sse}
+      MCP_PORT: ${MCP_PORT:-3000}
+      QUERY_SERVICE_URL: ${QUERY_SERVICE_URL:-http://query:8000}
+      QDRANT_URL: ${QDRANT_URL}
+      NEO4J_URI: ${NEO4J_URI}
+      NEO4J_USER: ${NEO4J_USER}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+      N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL}
+    ports:
+      - "3000:3000"
+    depends_on:
+      query:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
 
 volumes:
   ollama_data:
