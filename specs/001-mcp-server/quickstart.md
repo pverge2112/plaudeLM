@@ -51,10 +51,10 @@ MCP_PORT=3000
 
 ```bash
 # Build and start the MCP server alongside the full stack
-docker compose up -d notebooklm-mcp
+docker compose up -d plaudelm-mcp
 
 # Check logs
-docker compose logs -f notebooklm-mcp
+docker compose logs -f plaudelm-mcp
 ```
 
 ---
@@ -82,7 +82,7 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
 ```json
 {
   "mcpServers": {
-    "notebooklm": {
+    "plaudelm": {
       "command": "node",
       "args": ["/path/to/plaudeLM/mcp/dist/index.js"],
       "env": {

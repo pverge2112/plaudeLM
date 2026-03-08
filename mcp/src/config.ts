@@ -7,12 +7,10 @@
  */
 
 export interface Config {
-  OLLAMA_BASE_URL: string;
   QDRANT_URL: string;
   NEO4J_URI: string;
   NEO4J_USER: string;
   NEO4J_PASSWORD: string;
-  KONG_PROXY_URL: string;
   MCP_TRANSPORT: 'stdio' | 'sse';
   MCP_PORT: number;
   QUERY_SERVICE_URL: string;
@@ -29,12 +27,10 @@ export function throwMissing(name: string): never {
 
 function loadConfig(): Config {
   const required: Array<keyof Omit<Config, 'MCP_PORT'>> = [
-    'OLLAMA_BASE_URL',
     'QDRANT_URL',
     'NEO4J_URI',
     'NEO4J_USER',
     'NEO4J_PASSWORD',
-    'KONG_PROXY_URL',
     'MCP_TRANSPORT',
     'QUERY_SERVICE_URL',
     'N8N_WEBHOOK_URL',
@@ -57,12 +53,10 @@ function loadConfig(): Config {
   }
 
   return {
-    OLLAMA_BASE_URL: process.env['OLLAMA_BASE_URL'] ?? throwMissing('OLLAMA_BASE_URL'),
     QDRANT_URL: process.env['QDRANT_URL'] ?? throwMissing('QDRANT_URL'),
     NEO4J_URI: process.env['NEO4J_URI'] ?? throwMissing('NEO4J_URI'),
     NEO4J_USER: process.env['NEO4J_USER'] ?? throwMissing('NEO4J_USER'),
     NEO4J_PASSWORD: process.env['NEO4J_PASSWORD'] ?? throwMissing('NEO4J_PASSWORD'),
-    KONG_PROXY_URL: process.env['KONG_PROXY_URL'] ?? throwMissing('KONG_PROXY_URL'),
     MCP_TRANSPORT: transport,
     MCP_PORT: process.env['MCP_PORT'] ? parseInt(process.env['MCP_PORT'], 10) : 3000,
     QUERY_SERVICE_URL: process.env['QUERY_SERVICE_URL'] ?? throwMissing('QUERY_SERVICE_URL'),

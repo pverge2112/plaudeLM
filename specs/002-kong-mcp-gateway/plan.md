@@ -7,8 +7,8 @@
 
 Create `kong/kong.yaml` (Kong declarative config) with a service, route, and three plugins
 (`ai-mcp-proxy`, `key-auth`, `http-log`) that proxy all MCP protocol traffic from
-`/notebooklm/mcp/*` to the `notebooklm-mcp` SSE server. Uncomment and complete the
-`notebooklm-mcp` Docker Compose service (deferred from Spec #4). Fix the `query`/`kong`
+`/plaudelm/mcp/*` to the `plaudelm-mcp` SSE server. Uncomment and complete the
+`plaudelm-mcp` Docker Compose service (deferred from Spec #4). Fix the `query`/`kong`
 host-port conflict on 8000. Write integration tests verifying tool-call parity between
 Kong SSE and direct stdio before touching config (TDD).
 
@@ -21,7 +21,7 @@ Kong SSE and direct stdio before touching config (TDD).
 **Target Platform**: Docker Compose on macOS/Linux home lab; Kong Gateway 3.x (Enterprise)
 **Project Type**: Infrastructure configuration / service integration
 **Performance Goals**: Kong upstream timeout ≥ 120s (Ollama inference window for `query` + `ingest_document`); proxy overhead ≤ 500ms above stdio baseline for non-inference tool calls
-**Constraints**: Kong runs DB-less — config changes applied via `POST /config` to admin API or container restart; `deck validate` used for syntax checking; no manual Admin API calls for config management; no hardcoded values (API key from env var); service name `notebooklm-mcp` must remain stable per IV.4
+**Constraints**: Kong runs DB-less — config changes applied via `POST /config` to admin API or container restart; `deck validate` used for syntax checking; no manual Admin API calls for config management; no hardcoded values (API key from env var); service name `plaudelm-mcp` must remain stable per IV.4
 **Scale/Scope**: Single user (Paul); 1 Kong service + 1 route; 3 plugins; 1 consumer; 7 MCP tools proxied
 
 ## Constitution Check
@@ -41,7 +41,7 @@ Kong SSE and direct stdio before touching config (TDD).
 | III.4 | Strict TypeScript | ✅ REQUIRED | Integration test files follow same strict TS config as Spec #4/6 tests |
 | III.5 | Async consistency | ✅ REQUIRED | Integration test async/await throughout |
 | IV.2 | LLM calls via Kong only | ✅ N/A | This spec adds the MCP route to Kong; LLM routing unchanged |
-| IV.4 | Service name stability | ✅ REQUIRED | `notebooklm-mcp` service name is the permanent k3s-compatible name |
+| IV.4 | Service name stability | ✅ REQUIRED | `plaudelm-mcp` service name is the permanent k3s-compatible name |
 | IV.5 | Schema-first for MCP tools | ✅ N/A | Zod schemas unchanged; Kong proxies the existing protocol |
 
 **Constitution Check Result**: PASS — Unit test layer absence is justified (see Complexity Tracking). Proceed to Phase 0.
@@ -69,7 +69,7 @@ kong/
 └── kong.yaml                          # CREATE: Kong declarative config
                                        # (service, route, plugins, consumer)
 
-docker-compose.yml                     # MODIFY: uncomment notebooklm-mcp service;
+docker-compose.yml                     # MODIFY: uncomment plaudelm-mcp service;
                                        # fix query host port conflict (8000→8081)
 
 .env.example                           # MODIFY: add KONG_MCP_API_KEY;
@@ -116,7 +116,7 @@ See `research.md` for full rationale. Decisions summarized:
 | Config deployment | Edit `kong/kong.yaml` + `curl POST /config` to admin API (hot-reload) | Kong is DB-less; `deck sync` changes are ephemeral without file update. `POST /config` applies immediately and file ensures persistence on restart. |
 | decK usage | `deck validate` (syntax check) + `deck diff` (drift detection) — NOT `deck sync` for deployment | DB-less mode: `deck sync` would apply changes that don't survive restart. File + `POST /config` is the correct DB-less workflow. |
 | API key delivery | `apikey` header (key-auth plugin default) | Standard Kong key-auth; Claude Desktop MCP config supports custom headers. |
-| Kong route paths | `/notebooklm/mcp` (SSE) and `/notebooklm/mcp/messages` (POST) as separate routes | MCP SSE requires two HTTP paths; Kong routes each appropriately. |
+| Kong route paths | `/plaudelm/mcp` (SSE) and `/plaudelm/mcp/messages` (POST) as separate routes | MCP SSE requires two HTTP paths; Kong routes each appropriately. |
 | `query` host port | Changed from `8000:8000` to `8081:8000` | Fixes conflict with Kong proxy host port 8000. Internal Docker network still uses `http://query:8000`. |
 
 ---
@@ -129,8 +129,8 @@ See `research.md` for full rationale. Decisions summarized:
 
 The `kong/kong.yaml` file defines:
 
-1. **Service** (`notebooklm-mcp`): upstream pointing to `http://notebooklm-mcp:3000` with 120s timeouts
-2. **Routes** (two): `GET /notebooklm/mcp` → `/sse`; `POST /notebooklm/mcp/messages` → `/messages`
+1. **Service** (`plaudelm-mcp`): upstream pointing to `http://plaudelm-mcp:3000` with 120s timeouts
+2. **Routes** (two): `GET /plaudelm/mcp` → `/sse`; `POST /plaudelm/mcp/messages` → `/messages`
 3. **Plugins** (on the service):
    - `key-auth` — require `apikey` header
    - `http-log` — log to Kong's http-log endpoint
@@ -139,17 +139,17 @@ The `kong/kong.yaml` file defines:
 
 ### Docker Compose Changes
 
-- Uncomment `notebooklm-mcp` service; add `depends_on: query: condition: service_healthy`; add `restart: unless-stopped`; add healthcheck via `GET /health`
+- Uncomment `plaudelm-mcp` service; add `depends_on: query: condition: service_healthy`; add `restart: unless-stopped`; add healthcheck via `GET /health`
 - Fix `query` host port: `8000:8000` → `8081:8000`
 - Kong service mounts `./kong:/kong/declarative:ro` (already present) — `kong.yaml` placed in `kong/`
 
 ### Integration Test Design
 
 `mcp/tests/integration/tools/kong-sse.test.ts` (`@integration`):
-- **T1**: Kong health — `GET http://localhost:8000/notebooklm/mcp` without API key → 401
-- **T2**: Kong auth — `GET http://localhost:8000/notebooklm/mcp` with valid key → SSE connection established (not 401/404)
+- **T1**: Kong health — `GET http://localhost:8000/plaudelm/mcp` without API key → 401
+- **T2**: Kong auth — `GET http://localhost:8000/plaudelm/mcp` with valid key → SSE connection established (not 401/404)
 - **T3**: Tool parity — `list_notebooks` via Kong SSE returns same schema as direct stdio
-- **T4**: Kong-down behavior — when `notebooklm-mcp` stopped, Kong returns 502 (not hang)
+- **T4**: Kong-down behavior — when `plaudelm-mcp` stopped, Kong returns 502 (not hang)
 
 All tests skip gracefully (`test.skip`) when Kong is unreachable (same pattern as existing integration tests).
 
@@ -160,7 +160,7 @@ All tests skip gracefully (`test.skip`) when Kong is unreachable (same pattern a
 ### Phase 1: Setup
 
 - Fix `query` service host port conflict in `docker-compose.yml`
-- Uncomment `notebooklm-mcp` service in `docker-compose.yml` with full config
+- Uncomment `plaudelm-mcp` service in `docker-compose.yml` with full config
 - Add `KONG_MCP_API_KEY` to `.env.example`
 - Create empty `kong/kong.yaml` placeholder (valid minimal decK YAML, no routes yet)
 

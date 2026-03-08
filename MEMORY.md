@@ -1,4 +1,4 @@
-# MEMORY.md — Personal NotebookLM
+# MEMORY.md — plaudeLM
 
 > Read this file at the start of every Claude Code session before doing any work.
 > Update this file at the end of every session — mark completions, add decisions, log issues.
@@ -10,7 +10,7 @@
 
 **Phase:** Spec #5 (Kong MCP Gateway) fully specked — spec.md + plan.md + research.md + tasks.md all written and committed on `002-kong-mcp-gateway`. PR #8 merged to dev. Ready for implementation (T001–T021).
 **Last updated:** 2026-03-08
-**Next action:** On `002-kong-mcp-gateway`: implement T001–T021 in order. Start with T001 (verify docker-compose.yml notebooklm-mcp service), T002 (add KONG_MCP_API_KEY to .env.example), T003 (create kong/kong.yaml skeleton), then TDD red phase (T004–T005).
+**Next action:** On `002-kong-mcp-gateway`: implement T001–T021 in order. Start with T001 (verify docker-compose.yml plaudelm-mcp service), T002 (add KONG_MCP_API_KEY to .env.example), T003 (create kong/kong.yaml skeleton), then TDD red phase (T004–T005).
 
 ---
 
@@ -35,8 +35,8 @@
 
 ### Kong AI Gateway (foundation)
 - [x] `kong/kong-ollama.yaml` — decK config
-  - `/notebooklm/embed` → Ollama nomic-embed-text (ai-proxy, http-log)
-  - `/notebooklm/chat` → Ollama llama3.2 (ai-proxy, ai-rate-limiting-advanced, ai-pii-sanitizer, http-log)
+  - `/plaudelm/embed` → Ollama nomic-embed-text (ai-proxy, http-log)
+  - `/plaudelm/chat` → Ollama llama3.2 (ai-proxy, ai-rate-limiting-advanced, ai-pii-sanitizer, http-log)
   - ⚠️ Does NOT yet include MCP Gateway route — needs update in Spec #5
 
 ### Spec #2 — n8n Graph Extraction Step (merged to dev, PR #4)
@@ -58,7 +58,7 @@
 - [x] `specs/002-kong-mcp-gateway/plan.md` — constitution check, 5-phase plan, structure
 - [x] `specs/002-kong-mcp-gateway/research.md` — 8 research decisions
 - [x] `specs/002-kong-mcp-gateway/tasks.md` — 21 tasks across 6 phases; speckit.analyze run + 5 issues remediated
-- [x] `docker-compose.yml` — `notebooklm-mcp` service added; `query` host port 8000→8081 (port conflict fix)
+- [x] `docker-compose.yml` — `plaudelm-mcp` service added; `query` host port 8000→8081 (port conflict fix)
 - [x] `.env.example` — `QUERY_SERVICE_URL` fixed (8080→8000 internal port)
 - ⚠️ `kong/kong.yaml` — NOT yet created; T003 creates skeleton; must exist before `docker compose up`
 - ⚠️ MCP integration tests (kong-sse.test.ts) not yet written — T004 is the red phase
@@ -107,9 +107,13 @@ Nothing in progress.
 
 **Spec #5 — Kong MCP Gateway Route** (beads: plaudeLM-y0x, P2 — branch 002-kong-mcp-gateway)
 - Spec, plan, research written ✅
-- Remaining: create `kong/kong.yaml`, run `docker compose up -d query notebooklm-mcp`, run MCP integration tests
-- Decision: defer `ai-mcp-proxy` plugin until core stack is verified working; use standard Kong proxying first
-- Acceptance: tool call via Kong SSE returns same result as stdio; all integration tests green
+- **Architecture pivot**: using Kong Konnect (cloud control plane) + local Docker data plane instead of DB-less kong.yaml
+- Paul configures routes/plugins in Konnect UI; will dump kong.yaml for IaC after
+- `ai-mcp-proxy` plugin confirmed available on Konnect — used as passthrough to MCP server
+- Two MCP routes required: `GET /plaudelm/mcp/sse` + `POST /plaudelm/mcp/messages` both with `strip_path: true`
+- All clients (Desktop, Code, claude.ai, Cowork) will route through Kong SSE — no stdio bypass
+- Remaining: Paul completes Konnect config → dump kong.yaml → T004 integration tests → T002 .env.example
+- Acceptance: tool call via Kong SSE returns same result as direct; all integration tests green
 
 **Spec #7 — Audio Overview** (beads: plaudeLM-69j, P3)
 - `query/audio.py` — llama3.2 podcast script generation (host + guest format)
@@ -134,10 +138,17 @@ Nothing in progress.
 - [ ] Batch re-extraction on existing chunks with improved prompt
 - [ ] Review workflow via Claude+Cowork
 
-**Cowork Integration**
-- [ ] Task template: trigger ingest via MCP tool
-- [ ] Task template: run notebook query via MCP tool
-- [ ] Task template: graph concept review session
+**Spec #8 — Cowork Integration** (P3, after Spec #5 complete)
+- All clients (Desktop, Code, claude.ai, Cowork) route through Kong SSE — no stdio bypass
+- Folder convention: `~/plaudelm-inbox/{kong,personal,music}/` — drop files here
+- Cowork scheduled task: scan inbox subfolders → call `ingest_document` per file → move to `processed/`
+- PDF gap: Cowork must read + pass content inline (markdown/text) or serve file as local URL; base64 for PDFs TBD
+- Claude Desktop config: `{"url": "http://localhost:8000/plaudelm/mcp/sse", "headers": {"apikey": "..."}}`
+- Tasks to write:
+  - [ ] Cowork task template: inbox folder scan → `ingest_document` per file (scheduled)
+  - [ ] Cowork task template: run notebook query via MCP tool
+  - [ ] Cowork task template: graph concept review session
+  - [ ] Claude Desktop `claude_desktop_config.json` snippet (SSE via Kong) — also covers T020
 
 ---
 
@@ -207,12 +218,13 @@ Nothing in progress.
 - **Google Drive ingest** — requires Google OAuth 2.0 app. Set up at console.cloud.google.com; credentials in `.env` and n8n Credentials UI.
 - **PDF ingest via n8n** — requires multipart/form-data (binary), not JSON. Document in MCP `ingest_document` error messages.
 - **MCP transport switching** — when `MCP_TRANSPORT=sse`, stdio handler must not be initialized. Validate at startup in `config.ts`.
-- **Kong MCP Gateway routes require two separate route entries** — MCP SSE protocol uses `GET /sse` (SSE stream) and `POST /messages` (client→server). Kong must have one route per path with `strip_path: true`. A single prefix route with `strip_path: false` would forward the full `/notebooklm/mcp/sse` path to the upstream — MCP server has no route there and returns 404.
+- **Kong MCP Gateway routes require two separate route entries** — MCP SSE protocol uses `GET /sse` (SSE stream) and `POST /messages` (client→server). Kong must have one route per path with `strip_path: true`. A single prefix route with `strip_path: false` would forward the full `/plaudelm/mcp/sse` path to the upstream — MCP server has no route there and returns 404.
 - **ai-mcp-proxy plugin availability unknown** — verify with `curl http://localhost:8001/plugins/schema/ai-mcp-proxy` before Phase 3 (T006). If 404, plugin is not available on this Kong version; `key-auth` + `http-log` provide auth + observability without it.
 - **http-log requires a real HTTP endpoint** — Kong will fail to apply config if `http_endpoint` is unreachable at startup. For local dev: use `go-httpbin` (`mccutchen/go-httpbin`) or substitute `file-log` plugin.
 - **kong/ directory is empty** — `kong/kong.yaml` must be created before `docker compose up` (Kong will fail to start without it). T003 creates the skeleton.
+
 - **query service not yet running in Docker** — start with `docker compose up -d query` after creating `kong/kong.yaml`. Host port is now 8081 (was 8000).
-- **notebooklm-mcp service added to docker-compose.yml** — uncommented on `002-kong-mcp-gateway`; defaults to `MCP_TRANSPORT=sse`. For local Claude Desktop (stdio), run the MCP server directly with `MCP_TRANSPORT=stdio node dist/index.js`.
+- **plaudelm-mcp service added to docker-compose.yml** — uncommented on `002-kong-mcp-gateway`; defaults to `MCP_TRANSPORT=sse`. For local Claude Desktop (stdio), run the MCP server directly with `MCP_TRANSPORT=stdio node dist/index.js`.
 - **audio_overview FastAPI `/audio-overview` endpoint not implemented** — Spec #7. The MCP tool exists and delegates to FastAPI; the FastAPI side is not yet built.
 - **query/venv** — must be created locally before running pytest: `python3 -m venv venv && ./venv/bin/pip install -r requirements.txt -r requirements-dev.txt`
 - **Stale branches cleaned** — deleted: feat/1-neo4j-infrastructure, feat/3-n8n-graph-extraction, feat/5-query-service, feat/7-mcp-server, spec/1-neo4j-infrastructure (all fully merged to dev)
@@ -243,7 +255,7 @@ Nothing in progress.
 - Created 002-kong-mcp-gateway branch; wrote spec.md, plan.md, research.md
 - Key discovery: kong/ directory was empty — kong.yaml was never created; must create before Kong starts
 - Key discovery: query and kong both had 8000:8000 host port binding — fixed in docker-compose (query → 8081:8000)
-- Uncommented notebooklm-mcp service in docker-compose.yml (SSE mode, depends_on query)
+- Uncommented plaudelm-mcp service in docker-compose.yml (SSE mode, depends_on query)
 - User decision: defer ai-mcp-proxy plugin; get core stack working first
 - Test runs: 72/72 MCP unit+contract ✅; 30/30 query unit ✅; 29/29 query integration ✅
 - Session ended before `docker compose up` — that's next session's starting point

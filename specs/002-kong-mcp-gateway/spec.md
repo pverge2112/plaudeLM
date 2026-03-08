@@ -3,7 +3,7 @@
 **Feature Branch**: `002-kong-mcp-gateway`
 **Created**: 2026-03-08
 **Status**: Draft
-**Input**: User description: "Kong MCP Gateway Route — Add the /notebooklm/mcp/* route to kong/kong-ollama.yaml with ai-mcp-proxy, key-auth, and http-log plugins. Add notebooklm-mcp service to docker-compose.yml (deferred from MCP Server spec). Enable Claude clients (Desktop, Code, claude.ai) to reach all 7 MCP tools via Kong SSE transport with identical behavior to direct stdio. Acceptance: tool call via Kong SSE returns same result as stdio."
+**Input**: User description: "Kong MCP Gateway Route — Add the /plaudelm/mcp/* route to kong/kong-ollama.yaml with ai-mcp-proxy, key-auth, and http-log plugins. Add plaudelm-mcp service to docker-compose.yml (deferred from MCP Server spec). Enable Claude clients (Desktop, Code, claude.ai) to reach all 7 MCP tools via Kong SSE transport with identical behavior to direct stdio. Acceptance: tool call via Kong SSE returns same result as stdio."
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -17,7 +17,7 @@ Paul connects a Claude client (Desktop, Code, or claude.ai) to his knowledge bas
 
 **Acceptance Scenarios**:
 
-1. **Given** the full stack (Kong + notebooklm-mcp) is running, **When** a Claude client sends a `list_notebooks` tool call via the Kong SSE endpoint with a valid API key, **Then** Kong forwards the call to the MCP server and returns the same notebook stats as a direct stdio call.
+1. **Given** the full stack (Kong + plaudelm-mcp) is running, **When** a Claude client sends a `list_notebooks` tool call via the Kong SSE endpoint with a valid API key, **Then** Kong forwards the call to the MCP server and returns the same notebook stats as a direct stdio call.
 2. **Given** a tool call is made via Kong, **When** the MCP server processes it successfully, **Then** Kong's request log contains an entry for that request including route name, status code, and latency.
 3. **Given** Paul queries the `kong` notebook via the Kong MCP path, **When** the query runs, **Then** the answer and citations returned are identical to what direct stdio access would return for the same question.
 
@@ -33,7 +33,7 @@ Paul's Kong MCP endpoint is protected by an API key. Only Claude clients configu
 
 **Acceptance Scenarios**:
 
-1. **Given** a request to `/notebooklm/mcp/*` with no API key header, **When** Kong receives it, **Then** Kong returns HTTP 401 and the request never reaches the MCP server.
+1. **Given** a request to `/plaudelm/mcp/*` with no API key header, **When** Kong receives it, **Then** Kong returns HTTP 401 and the request never reaches the MCP server.
 2. **Given** a request with an invalid API key, **When** Kong receives it, **Then** Kong returns HTTP 401.
 3. **Given** a Claude client configured with the correct API key, **When** it calls any of the 7 tools, **Then** the call proceeds normally and returns the expected tool response.
 
@@ -45,13 +45,13 @@ The MCP server runs as a named service in the Docker Compose stack alongside all
 
 **Why this priority**: The MCP server Dockerfile was built in Spec #4 but the `docker-compose.yml` service entry was explicitly deferred. Without it, Paul must start the MCP server manually outside Compose — friction that breaks the "full stack, single command" operational model.
 
-**Independent Test**: Can be tested by running `docker compose up -d` from scratch, waiting for all healthchecks to pass, then confirming the `notebooklm-mcp` container is running and Kong can route traffic to it.
+**Independent Test**: Can be tested by running `docker compose up -d` from scratch, waiting for all healthchecks to pass, then confirming the `plaudelm-mcp` container is running and Kong can route traffic to it.
 
 **Acceptance Scenarios**:
 
-1. **Given** `.env` contains all required MCP server environment variables, **When** `docker compose up -d` is run, **Then** the `notebooklm-mcp` container starts, passes its healthcheck, and is reachable at its configured port.
-2. **Given** the `notebooklm-mcp` container crashes unexpectedly, **When** Docker detects the failure, **Then** the container restarts automatically without manual intervention.
-3. **Given** the `query` service is not yet healthy, **When** `docker compose up -d` is run, **Then** `notebooklm-mcp` waits until `query` is healthy before starting.
+1. **Given** `.env` contains all required MCP server environment variables, **When** `docker compose up -d` is run, **Then** the `plaudelm-mcp` container starts, passes its healthcheck, and is reachable at its configured port.
+2. **Given** the `plaudelm-mcp` container crashes unexpectedly, **When** Docker detects the failure, **Then** the container restarts automatically without manual intervention.
+3. **Given** the `query` service is not yet healthy, **When** `docker compose up -d` is run, **Then** `plaudelm-mcp` waits until `query` is healthy before starting.
 
 ---
 
@@ -68,10 +68,10 @@ The MCP server runs as a named service in the Docker Compose stack alongside all
 
 ### Functional Requirements
 
-- **FR-001**: The MCP server MUST run as a containerized service named `notebooklm-mcp` in `docker-compose.yml`, built from the existing `./mcp` Dockerfile, with all required environment variables injected from `.env`.
-- **FR-002**: The `notebooklm-mcp` service MUST start in SSE mode (`MCP_TRANSPORT=sse`), listen on `MCP_PORT`, and be configured to restart automatically unless explicitly stopped.
-- **FR-003**: The `notebooklm-mcp` service MUST declare a `depends_on` condition on the `query` service that waits for `query` to be healthy before starting.
-- **FR-004**: The Kong configuration MUST define a service and route for `/notebooklm/mcp/*` that forwards all traffic to the `notebooklm-mcp` container's SSE endpoint.
+- **FR-001**: The MCP server MUST run as a containerized service named `plaudelm-mcp` in `docker-compose.yml`, built from the existing `./mcp` Dockerfile, with all required environment variables injected from `.env`.
+- **FR-002**: The `plaudelm-mcp` service MUST start in SSE mode (`MCP_TRANSPORT=sse`), listen on `MCP_PORT`, and be configured to restart automatically unless explicitly stopped.
+- **FR-003**: The `plaudelm-mcp` service MUST declare a `depends_on` condition on the `query` service that waits for `query` to be healthy before starting.
+- **FR-004**: The Kong configuration MUST define a service and route for `/plaudelm/mcp/*` that forwards all traffic to the `plaudelm-mcp` container's SSE endpoint.
 - **FR-005**: The Kong route MUST apply the `ai-mcp-proxy` plugin to handle MCP-over-SSE protocol proxying correctly.
 - **FR-006**: The Kong route MUST apply the `key-auth` plugin; all requests without a valid API key MUST be rejected with HTTP 401 before reaching the MCP server.
 - **FR-007**: The Kong route MUST apply the `http-log` plugin to capture all MCP tool call requests and responses for observability.
@@ -82,27 +82,27 @@ The MCP server runs as a named service in the Docker Compose stack alongside all
 
 ### Key Entities
 
-- **Kong Service (notebooklm-mcp)**: The upstream definition in Kong pointing to the `notebooklm-mcp` container's SSE endpoint. Owns the upstream URL and timeout configuration.
-- **Kong Route (/notebooklm/mcp/*)**: The path-matching rule that accepts all MCP traffic at the gateway and forwards it to the Kong Service. Receives all three plugins.
+- **Kong Service (plaudelm-mcp)**: The upstream definition in Kong pointing to the `plaudelm-mcp` container's SSE endpoint. Owns the upstream URL and timeout configuration.
+- **Kong Route (/plaudelm/mcp/*)**: The path-matching rule that accepts all MCP traffic at the gateway and forwards it to the Kong Service. Receives all three plugins.
 - **Kong Consumer (paul)**: A Kong consumer entity with an `api-key` credential. Claude clients present this key in requests to authenticate.
 - **decK Config (`kong/kong-ollama.yaml`)**: The declarative Kong configuration file. Source of truth for all Kong services, routes, plugins, and consumers. Updated by this spec to add the MCP route.
-- **MCP Server (SSE mode)**: The `notebooklm-mcp` container from Spec #4 running with `MCP_TRANSPORT=sse`. This spec adds it to Docker Compose and wires it to Kong.
+- **MCP Server (SSE mode)**: The `plaudelm-mcp` container from Spec #4 running with `MCP_TRANSPORT=sse`. This spec adds it to Docker Compose and wires it to Kong.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
 - **SC-001**: A tool call made via the Kong MCP endpoint returns the same response as the same tool call made via direct stdio — 100% behavioral parity verified across all 7 tools.
-- **SC-002**: 100% of requests to `/notebooklm/mcp/*` without a valid API key are rejected with HTTP 401 at the Kong layer — zero unauthenticated requests reach the MCP server.
+- **SC-002**: 100% of requests to `/plaudelm/mcp/*` without a valid API key are rejected with HTTP 401 at the Kong layer — zero unauthenticated requests reach the MCP server.
 - **SC-003**: 100% of MCP tool calls routed via Kong appear in the Kong request log with route name, HTTP status, and latency — zero gaps in observability.
-- **SC-004**: `docker compose up -d` starts the complete stack including `notebooklm-mcp` with no manual steps beyond providing a valid `.env` file — single-command startup for the full system.
+- **SC-004**: `docker compose up -d` starts the complete stack including `plaudelm-mcp` with no manual steps beyond providing a valid `.env` file — single-command startup for the full system.
 - **SC-005**: `deck diff` against a running Kong instance after `deck sync` shows zero unexpected changes — Kong configuration is idempotent and fully reproducible from the declarative config file.
 - **SC-006**: Tool calls requiring Ollama inference (`query`, `ingest_document`) do not time out at the Kong layer for typical inputs — Kong upstream timeout accommodates at least 120 seconds without dropping the connection.
 
 ## Assumptions
 
 - The MCP server (Spec #4) is fully implemented, `mcp/Dockerfile` exists, and the SSE transport functions correctly when `MCP_TRANSPORT=sse`.
-- The Kong Gateway service is already present in `docker-compose.yml` and `kong/kong-ollama.yaml` from the infrastructure spec (Spec #1), with working routes for `/notebooklm/embed` and `/notebooklm/chat`.
+- The Kong Gateway service is already present in `docker-compose.yml` and `kong/kong-ollama.yaml` from the infrastructure spec (Spec #1), with working routes for `/plaudelm/embed` and `/plaudelm/chat`.
 - The `query` service healthcheck is already defined in `docker-compose.yml` (from Spec #3), enabling `depends_on` with health condition.
 - `deck` CLI is available in the local development environment for applying and verifying Kong configuration.
 - Claude Desktop / Claude Code MCP client configuration supports specifying a base URL and API key header for SSE transport connections.

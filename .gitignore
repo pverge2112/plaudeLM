@@ -73,3 +73,6 @@ test-results/
 *.wav
 *.ogg
 audio_output/
+
+kong/api-gateway/cert/
+api-gw.env

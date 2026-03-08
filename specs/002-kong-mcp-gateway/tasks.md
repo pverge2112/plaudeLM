@@ -13,7 +13,7 @@
 ## Notes on Prior Work
 
 The following were completed in the previous session and are marked accordingly:
-- `docker-compose.yml` — `notebooklm-mcp` service entry added; `query` host port changed from `8000:8000` → `8081:8000`
+- `docker-compose.yml` — `plaudelm-mcp` service entry added; `query` host port changed from `8000:8000` → `8081:8000`
 - `.env.example` — `QUERY_SERVICE_URL` internal port corrected
 
 ## Remediation Notes (from speckit.analyze)
@@ -30,9 +30,9 @@ The following were completed in the previous session and are marked accordingly:
 
 **Purpose**: Ensure all config files and env vars are in place before writing any tests or Kong config.
 
-- [ ] T001 Verify `docker-compose.yml` `notebooklm-mcp` service entry is complete — confirm presence of: `restart: unless-stopped`, `depends_on.query.condition: service_healthy`, healthcheck (`GET http://localhost:3000/health`), `MCP_TRANSPORT=sse`, `MCP_PORT`, `QUERY_SERVICE_URL`, `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`, `QDRANT_URL` injected from env
+- [ ] T001 Verify `docker-compose.yml` `plaudelm-mcp` service entry is complete — confirm presence of: `restart: unless-stopped`, `depends_on.query.condition: service_healthy`, healthcheck (`GET http://localhost:3000/health`), `MCP_TRANSPORT=sse`, `MCP_PORT`, `QUERY_SERVICE_URL`, `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`, `QDRANT_URL` injected from env
 - [ ] T002 [P] Add `KONG_MCP_API_KEY` to `.env.example` with description comment (value: `changeme-mcp-api-key` as placeholder; warn to rotate before use)
-- [ ] T003 Create `kong/kong.yaml` skeleton — `_format_version: "3.0"` with two stub services for Ollama (`/notebooklm/embed` and `/notebooklm/chat` pointing to `http://ollama:11434`) — no plugins, no MCP route yet — just enough for Kong to start cleanly without config errors
+- [ ] T003 Create `kong/kong.yaml` skeleton — `_format_version: "3.0"` with two stub services for Ollama (`/plaudelm/embed` and `/plaudelm/chat` pointing to `http://ollama:11434`) — no plugins, no MCP route yet — just enough for Kong to start cleanly without config errors
 
 ---
 
@@ -43,10 +43,10 @@ The following were completed in the previous session and are marked accordingly:
 **⚠️ CRITICAL**: These tests MUST be committed in a failing state (Kong returns 404 — route does not exist). Do not implement the MCP route in `kong.yaml` until these are committed and confirmed failing.
 
 - [ ] T004 Create `mcp/tests/integration/tools/kong-sse.test.ts` with 5 `@integration` tests — skip gracefully when Kong unreachable (same pattern as existing integration tests):
-  - **T4-1**: `GET http://localhost:8000/notebooklm/mcp/sse` with no API key → 401 (will fail with 404 until route + auth exist)
-  - **T4-2**: `GET http://localhost:8000/notebooklm/mcp/sse` with valid `apikey` header → SSE connection established (200, `Content-Type: text/event-stream`)
+  - **T4-1**: `GET http://localhost:8000/plaudelm/mcp/sse` with no API key → 401 (will fail with 404 until route + auth exist)
+  - **T4-2**: `GET http://localhost:8000/plaudelm/mcp/sse` with valid `apikey` header → SSE connection established (200, `Content-Type: text/event-stream`)
   - **T4-3**: `list_notebooks` tool call via Kong SSE endpoint returns response object with `notebooks` array matching direct stdio schema
-  - **T4-4**: `GET http://localhost:8000/notebooklm/mcp/sse` with invalid API key → 401
+  - **T4-4**: `GET http://localhost:8000/plaudelm/mcp/sse` with invalid API key → 401
   - **T4-5**: After any successful tool call via Kong, Kong request log contains an entry (check via `GET http://localhost:8001/requests` or log file)
 - [ ] T005 Start Docker Compose stack (`docker compose up -d`) and run `npm run test:integration -- --testPathPattern=kong-sse` — confirm all 5 tests FAIL with 404 (expected — route not yet configured); commit tests in this failing state
 
@@ -61,10 +61,10 @@ The following were completed in the previous session and are marked accordingly:
 **Independent Test**: `list_notebooks` via Kong SSE returns same schema as direct stdio call — verified by T4-3 integration test.
 
 - [ ] T006 Verify `ai-mcp-proxy` plugin availability on the running Kong instance — run `curl -s http://localhost:8001/plugins/schema/ai-mcp-proxy`; if response is a schema (not 404), plugin is available; document result (available/unavailable) — this determines whether T010 uses `ai-mcp-proxy` or the fallback path
-- [ ] T007 [US1] Add MCP `service` block to `kong/kong.yaml` — name: `notebooklm-mcp`, url: `http://notebooklm-mcp:3000`, `connect_timeout: 120000`, `read_timeout: 120000`, `write_timeout: 120000`
-- [ ] T008 [US1] Add TWO MCP route blocks to the `notebooklm-mcp` service in `kong/kong.yaml`:
-  - Route 1 — SSE connection: name `notebooklm-mcp-sse`, paths: `[/notebooklm/mcp/sse]`, methods: `[GET]`, `strip_path: true` (upstream receives `GET /sse`)
-  - Route 2 — Message posting: name `notebooklm-mcp-messages`, paths: `[/notebooklm/mcp/messages]`, methods: `[POST]`, `strip_path: true` (upstream receives `POST /messages`)
+- [ ] T007 [US1] Add MCP `service` block to `kong/kong.yaml` — name: `plaudelm-mcp`, url: `http://plaudelm-mcp:3000`, `connect_timeout: 120000`, `read_timeout: 120000`, `write_timeout: 120000`
+- [ ] T008 [US1] Add TWO MCP route blocks to the `plaudelm-mcp` service in `kong/kong.yaml`:
+  - Route 1 — SSE connection: name `plaudelm-mcp-sse`, paths: `[/plaudelm/mcp/sse]`, methods: `[GET]`, `strip_path: true` (upstream receives `GET /sse`)
+  - Route 2 — Message posting: name `plaudelm-mcp-messages`, paths: `[/plaudelm/mcp/messages]`, methods: `[POST]`, `strip_path: true` (upstream receives `POST /messages`)
   - Note: `strip_path: true` is required — MCP server listens at `/sse` and `/messages`, not at the Kong prefix paths
 - [ ] T009 [US1] Add `http-log` plugin to MCP service in `kong/kong.yaml` — service-level plugin; choose ONE concrete log endpoint:
   - **Option A** (preferred for local dev): Add `go-httpbin` service to `docker-compose.yml` (`mccutchen/go-httpbin:latest`, port 8088) and set `http_endpoint: http://go-httpbin:80/post`
@@ -74,7 +74,7 @@ The following were completed in the previous session and are marked accordingly:
   - **If available**: add plugin block `{name: ai-mcp-proxy}` to the service plugins list
   - **If unavailable**: add a comment in `kong/kong.yaml` documenting that `ai-mcp-proxy` was checked and is not available on this Kong version; standard SSE proxying via `key-auth` + `http-log` provides the required functionality
 
-**Checkpoint (US1)**: Kong routes `/notebooklm/mcp/sse` and `/notebooklm/mcp/messages` to `notebooklm-mcp:3000`. Tool calls reachable — not yet authenticated.
+**Checkpoint (US1)**: Kong routes `/plaudelm/mcp/sse` and `/plaudelm/mcp/messages` to `plaudelm-mcp:3000`. Tool calls reachable — not yet authenticated.
 
 ---
 
@@ -82,12 +82,12 @@ The following were completed in the previous session and are marked accordingly:
 
 **Goal**: All requests without a valid API key rejected at Kong with HTTP 401. Authenticated clients reach all 7 tools normally.
 
-**Independent Test**: Send `GET /notebooklm/mcp/sse` with no key → 401; with invalid key → 401; with valid key → SSE connection established. Verified by T4-1, T4-2, T4-4.
+**Independent Test**: Send `GET /plaudelm/mcp/sse` with no key → 401; with invalid key → 401; with valid key → SSE connection established. Verified by T4-1, T4-2, T4-4.
 
 - [ ] T011 [US2] Add `key-auth` plugin to MCP service in `kong/kong.yaml` — `config.key_names: [apikey]`; add as the first plugin in the service plugin list (evaluated before http-log and ai-mcp-proxy)
 - [ ] T012 [US2] Add `consumers` block to `kong/kong.yaml` — consumer username: `paul`; `keyauth_credentials: [{key: "${KONG_MCP_API_KEY}"}]` (decK env var interpolation syntax — requires `--env-var-expansion` flag on deck commands)
 - [ ] T013 [US2] Run `deck validate --env-var-expansion kong/kong.yaml` — must pass with zero errors; fix any syntax issues before proceeding to apply
-- [ ] T014 [US2] Apply updated `kong/kong.yaml` to running Kong — `curl -sX POST http://localhost:8001/config -F config=@kong/kong.yaml`; verify response indicates success; check `curl http://localhost:8001/services` shows `notebooklm-mcp` service
+- [ ] T014 [US2] Apply updated `kong/kong.yaml` to running Kong — `curl -sX POST http://localhost:8001/config -F config=@kong/kong.yaml`; verify response indicates success; check `curl http://localhost:8001/services` shows `plaudelm-mcp` service
 - [ ] T015 [US2] Run full integration test suite — `npm run test:integration -- --testPathPattern=kong-sse` — all 5 tests must be GREEN; fix any failures before proceeding
 
 **Checkpoint (US2)**: All 5 integration tests green. Kong auth enforced. Tool parity verified. Log capture confirmed.
@@ -96,13 +96,13 @@ The following were completed in the previous session and are marked accordingly:
 
 ## Phase 5: User Story 3 — MCP Service in Docker Compose (Priority: P3)
 
-**Goal**: Full stack starts with single `docker compose up -d`; `notebooklm-mcp` starts automatically, passes healthcheck, restarts on crash.
+**Goal**: Full stack starts with single `docker compose up -d`; `plaudelm-mcp` starts automatically, passes healthcheck, restarts on crash.
 
-**Independent Test**: `docker compose down && docker compose up -d`; wait for all healthchecks; confirm `notebooklm-mcp` container is running and tool call via Kong succeeds.
+**Independent Test**: `docker compose down && docker compose up -d`; wait for all healthchecks; confirm `plaudelm-mcp` container is running and tool call via Kong succeeds.
 
-- [ ] T016 [US3] Cold-start full stack — `docker compose down` then `docker compose up -d`; watch `docker compose ps` until all services healthy; confirm `notebooklm-mcp` starts only after `query` is healthy (check startup ordering in `docker compose logs notebooklm-mcp`)
-- [ ] T017 [US3] Verify restart policy — `docker compose kill notebooklm-mcp` then wait 15s; confirm container restarts automatically (`docker compose ps` shows it running again with a new start time)
-- [ ] T018 [US3] Re-run integration tests after cold start — `npm run test:integration -- --testPathPattern=kong-sse` — all 5 must remain green; confirms Kong correctly routes to freshly started `notebooklm-mcp` after a cold boot
+- [ ] T016 [US3] Cold-start full stack — `docker compose down` then `docker compose up -d`; watch `docker compose ps` until all services healthy; confirm `plaudelm-mcp` starts only after `query` is healthy (check startup ordering in `docker compose logs plaudelm-mcp`)
+- [ ] T017 [US3] Verify restart policy — `docker compose kill plaudelm-mcp` then wait 15s; confirm container restarts automatically (`docker compose ps` shows it running again with a new start time)
+- [ ] T018 [US3] Re-run integration tests after cold start — `npm run test:integration -- --testPathPattern=kong-sse` — all 5 must remain green; confirms Kong correctly routes to freshly started `plaudelm-mcp` after a cold boot
 
 **Checkpoint (US3)**: Full stack brings up cleanly. Auto-restart verified. All integration tests green post cold-start.
 
@@ -111,7 +111,7 @@ The following were completed in the previous session and are marked accordingly:
 ## Phase 6: Polish & Cross-Cutting Concerns
 
 - [ ] T019 [P] Run `deck diff --env-var-expansion --kong-addr http://localhost:8001` — output must show zero unexpected changes; `kong/kong.yaml` is the single source of truth for all Kong config
-- [ ] T020 [P] Create `specs/002-kong-mcp-gateway/quickstart.md` with: (a) Claude Desktop MCP config JSON snippet pointing to `http://localhost:8000/notebooklm/mcp/sse` with `apikey` header, (b) Claude Code `claude mcp add` command, (c) manual verification steps (`list_notebooks` expected output)
+- [ ] T020 [P] Create `specs/002-kong-mcp-gateway/quickstart.md` with: (a) Claude Desktop MCP config JSON snippet pointing to `http://localhost:8000/plaudelm/mcp/sse` with `apikey` header, (b) Claude Code `claude mcp add` command, (c) manual verification steps (`list_notebooks` expected output)
 - [ ] T021 Update `MEMORY.md` — mark Spec #5 complete in Completed section; move `plaudeLM-y0x` to closed; update Known Issues (remove warnings about kong/ being empty); log any new architecture decisions from this session
 
 ---

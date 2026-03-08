@@ -147,7 +147,7 @@
 - [ ] T041a [P] Write failing contract tests for `audio_overview` in `mcp/tests/contract/tools/audio.test.ts`: valid input passes `AudioOverviewInputSchema`; empty topic → `InvalidParams`; valid mock response passes `AudioOverviewOutputSchema`; `script.length < 200` → `InternalError`
 - [ ] T041b [P] Write failing unit tests for `audio_overview` handler in `mcp/tests/unit/tools/audio.test.ts`: valid input → calls `FastApiClient.post('/audio-overview')`; service down → `McpError(InternalError)`; `script.length < 200` in response → `McpError(InternalError)`
 - [ ] T042 Implement `mcp/src/tools/audio.ts`: calls `fastapi.post('/audio-overview', input)`; validates `script.length >= 200`; returns `AudioOverviewOutputSchema`; register in `server.ts`
-- [ ] T043 Add `notebooklm-mcp` service to `docker-compose.yml`: `build: ./mcp`, env vars from `.env`, `depends_on: [query]`, `restart: unless-stopped`, healthcheck: `curl -f http://localhost:3000/health` (SSE mode only — omit healthcheck for stdio-only deployments)
+- [ ] T043 Add `plaudelm-mcp` service to `docker-compose.yml`: `build: ./mcp`, env vars from `.env`, `depends_on: [query]`, `restart: unless-stopped`, healthcheck: `curl -f http://localhost:3000/health` (SSE mode only — omit healthcheck for stdio-only deployments)
 - [ ] T044 [P] Verify `npm run build` produces zero TypeScript errors and `npm test` (unit + contract) is fully green
 - [ ] T045 [P] Run quickstart.md validation: start full stack, connect Claude Desktop, verify all 7 tools appear and respond correctly; document any deviations from quickstart.md
 

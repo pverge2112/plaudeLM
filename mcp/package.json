@@ -1,7 +1,7 @@
 {
-  "name": "notebooklm-mcp",
+  "name": "plaudelm-mcp",
   "version": "0.1.0",
-  "description": "MCP server — Personal NotebookLM knowledge base tools",
+  "description": "MCP server — plaudeLM knowledge base tools",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {

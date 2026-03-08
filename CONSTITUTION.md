@@ -1,4 +1,4 @@
-# CONSTITUTION.md — Personal NotebookLM
+# CONSTITUTION.md — plaudeLM
 
 > These rules are **non-negotiable**. Claude Code must follow every rule in this file
 > on every task, in every session, without exception. If a rule conflicts with a user
@@ -184,7 +184,7 @@ unless explicitly approved in its spec.
 
 ### IV.2 — All LLM Calls Route Through Kong
 No service may call Ollama directly. All LLM and embedding calls must go through
-Kong AI Gateway routes (`/notebooklm/chat`, `/notebooklm/embed`).
+Kong AI Gateway routes (`/plaudelm/chat`, `/plaudelm/embed`).
 This ensures observability, rate limiting, and PII sanitization are always active.
 
 ### IV.3 — No External AI APIs
@@ -192,7 +192,7 @@ This system is fully local. Anthropic API, OpenAI API, and any other external
 AI service are forbidden. All inference runs via Ollama on the home lab.
 
 ### IV.4 — Docker Compose Service Name Stability
-Service names in docker-compose.yml (`ollama`, `qdrant`, `neo4j`, `n8n`, `query`, `notebooklm-mcp`)
+Service names in docker-compose.yml (`ollama`, `qdrant`, `neo4j`, `n8n`, `query`, `plaudelm-mcp`)
 must remain stable. They will become Kubernetes Service names during k3s migration.
 Do not rename services without a migration spec.
 

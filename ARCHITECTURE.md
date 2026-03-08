@@ -1,4 +1,4 @@
-# ARCHITECTURE.md — Personal NotebookLM
+# ARCHITECTURE.md — plaudeLM
 
 > This document is the authoritative reference for system architecture.
 > All implementation decisions must be consistent with this document.
@@ -8,7 +8,7 @@
 
 ## System Overview
 
-Personal NotebookLM is a fully local, self-hosted **GraphRAG** knowledge base.
+plaudeLM is a fully local, self-hosted **GraphRAG** knowledge base.
 It combines vector similarity search (Qdrant) with knowledge graph traversal (Neo4j)
 to provide richer, more connected retrieval than either system alone.
 
@@ -56,8 +56,8 @@ No custom frontend. No external AI APIs.
                        │                 │      │
          ┌─────────────▼─────────────────▼──┐   │
          │         Kong AI Gateway           │   │
-         │  /notebooklm/chat  (llama3.2)     │   │
-         │  /notebooklm/embed (nomic-embed)  │   │
+         │  /plaudelm/chat  (llama3.2)     │   │
+         │  /plaudelm/embed (nomic-embed)  │   │
          └─────────────────┬─────────────────┘   │
                            │                     │
                     ┌──────▼──────┐               │
@@ -84,7 +84,7 @@ No custom frontend. No external AI APIs.
 **SDK:** `@modelcontextprotocol/sdk` (official)  
 **Transport:** stdio (local) | HTTP/SSE (Kong-proxied) — selected via `MCP_TRANSPORT` env var  
 **Port:** 3000 (SSE mode only)  
-**Responsibility:** Expose all NotebookLM capabilities as MCP tools. Route tool calls to the appropriate backend (FastAPI for complex ops, direct clients for simple reads/writes).
+**Responsibility:** Expose all plaudeLM capabilities as MCP tools. Route tool calls to the appropriate backend (FastAPI for complex ops, direct clients for simple reads/writes).
 
 ### Query Service (`query/`)
 **Language:** Python 3.11+  
@@ -416,9 +416,9 @@ query/
 
 | Route | Upstream | Plugins |
 |---|---|---|
-| `POST /notebooklm/embed` | Ollama `nomic-embed-text` | ai-proxy, http-log |
-| `POST /notebooklm/chat` | Ollama `llama3.2` | ai-proxy, ai-rate-limiting-advanced, ai-pii-sanitizer, http-log |
-| `ANY /notebooklm/mcp/*` | MCP Server SSE (port 3000) | ai-mcp-proxy, key-auth, http-log |
+| `POST /plaudelm/embed` | Ollama `nomic-embed-text` | ai-proxy, http-log |
+| `POST /plaudelm/chat` | Ollama `llama3.2` | ai-proxy, ai-rate-limiting-advanced, ai-pii-sanitizer, http-log |
+| `ANY /plaudelm/mcp/*` | MCP Server SSE (port 3000) | ai-mcp-proxy, key-auth, http-log |
 
 ---
 

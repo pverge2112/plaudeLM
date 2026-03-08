@@ -162,7 +162,7 @@ def test_constraint_count_stable_after_second_init(
 
     rows_before = _query(
         driver,
-        "SHOW CONSTRAINTS YIELD name WHERE name STARTS WITH 'notebooklm_' RETURN count(*) AS cnt",
+        "SHOW CONSTRAINTS YIELD name WHERE name STARTS WITH 'plaudelm_' RETURN count(*) AS cnt",
     )
     cnt_before = rows_before[0]["cnt"]
 
@@ -182,7 +182,7 @@ def test_constraint_count_stable_after_second_init(
 
     rows_after = _query(
         driver,
-        "SHOW CONSTRAINTS YIELD name WHERE name STARTS WITH 'notebooklm_' RETURN count(*) AS cnt",
+        "SHOW CONSTRAINTS YIELD name WHERE name STARTS WITH 'plaudelm_' RETURN count(*) AS cnt",
     )
     cnt_after = rows_after[0]["cnt"]
     driver.close()

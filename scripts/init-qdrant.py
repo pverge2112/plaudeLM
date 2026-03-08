@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-init-qdrant.py — Initialize Qdrant collections for Personal NotebookLM.
+init-qdrant.py — Initialize Qdrant collections for plaudeLM.
 
 Creates the kong, personal, and music collections with 768-dim Cosine vectors
 (nomic-embed-text). Safe to re-run — existing collections are left unchanged

@@ -19,7 +19,7 @@
 | `POST /messages` | POST | Client sends message to server (with `?sessionId=X`) |
 | `GET /health` | GET | Container healthcheck |
 
-**Rationale**: The MCP SSE transport splits client→server messages from the server→client SSE stream onto two HTTP paths. Kong must proxy both. A single `/notebooklm/mcp` prefix route covering all paths is the simplest approach — Kong's prefix matching handles all three.
+**Rationale**: The MCP SSE transport splits client→server messages from the server→client SSE stream onto two HTTP paths. Kong must proxy both. A single `/plaudelm/mcp` prefix route covering all paths is the simplest approach — Kong's prefix matching handles all three.
 
 **Alternatives considered**:
 - One route per path — more precise but unnecessary complexity for single-user home lab.
@@ -36,15 +36,15 @@
 ```yaml
 _format_version: "3.0"
 services:
-  - name: notebooklm-mcp
-    url: http://notebooklm-mcp:3000
+  - name: plaudelm-mcp
+    url: http://plaudelm-mcp:3000
     connect_timeout: 120000
     read_timeout: 120000
     write_timeout: 120000
     routes:
-      - name: notebooklm-mcp-route
+      - name: plaudelm-mcp-route
         paths:
-          - /notebooklm/mcp
+          - /plaudelm/mcp
         strip_path: false
     plugins:
       - name: key-auth
@@ -177,6 +177,6 @@ deck validate --env-var-expansion kong/kong.yaml  # substitutes before validatin
 
 **Finding**: `docker-compose.yml` mounts `./kong:/kong/declarative:ro` and sets `KONG_DECLARATIVE_CONFIG: /kong/declarative/kong.yaml`. The `kong/` directory is empty. The ARCHITECTURE.md and earlier MEMORY.md references to `kong/kong-ollama.yaml` are incorrect — the mounted path requires `kong/kong.yaml`.
 
-**Initial content needed**: A valid `_format_version: "3.0"` file with the two existing routes for `/notebooklm/embed` and `/notebooklm/chat` (which were planned in ARCHITECTURE.md but never implemented), PLUS the new `/notebooklm/mcp` route for this spec.
+**Initial content needed**: A valid `_format_version: "3.0"` file with the two existing routes for `/plaudelm/embed` and `/plaudelm/chat` (which were planned in ARCHITECTURE.md but never implemented), PLUS the new `/plaudelm/mcp` route for this spec.
 
 **Scope decision**: This spec creates the FIRST version of `kong/kong.yaml`, implementing all three routes at once. The embed and chat routes were always part of the intended config and are trivially defined (ai-proxy plugin pointing to Ollama).

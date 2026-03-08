@@ -1,4 +1,4 @@
-# CLAUDE.md — Personal NotebookLM
+# CLAUDE.md — plaudeLM
 
 > **Read before doing anything else:**
 > 1. Read `CONSTITUTION.md` — non-negotiable rules. Every rule applies to every task.
@@ -19,7 +19,7 @@
 
 ## Project Overview
 
-A fully local, self-hosted **GraphRAG** knowledge base exposed via an **MCP server**.
+A fully local, self-hosted **GraphRAG** knowledge base exposed via an **MCP server** (plaudeLM).
 All LLM and embedding inference runs locally via Ollama. No external AI API calls.
 All LLM traffic routes through Kong AI Gateway for observability and control.
 Primary interface: Claude (Desktop / Code / claude.ai) via MCP tools.
@@ -60,7 +60,7 @@ Primary interface: Claude (Desktop / Code / claude.ai) via MCP tools.
 ## Repository Structure
 
 ```
-notebooklm/
+plaudelm/
 ├── CLAUDE.md                       # This file — start here
 ├── CONSTITUTION.md                 # Non-negotiable rules
 ├── ARCHITECTURE.md                 # System design reference

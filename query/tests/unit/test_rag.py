@@ -17,7 +17,7 @@ from rag import QdrantResult, RagRetriever
 
 class TestEmbedQuestion:
     async def test_embed_question_sends_correct_payload_to_kong(self) -> None:
-        """embed_question POSTs to /notebooklm/embed with the question as the input field."""
+        """embed_question POSTs to /plaudelm/embed with the question as the input field."""
         mock_response = MagicMock()
         mock_response.raise_for_status = MagicMock()
         mock_response.json.return_value = {"data": [{"embedding": [0.1] * 768}]}
@@ -34,7 +34,7 @@ class TestEmbedQuestion:
             result = await retriever.embed_question("What is GraphRAG?")
 
         call_args = mock_client.post.call_args
-        assert call_args[0][0] == "http://kong:8000/notebooklm/embed"
+        assert call_args[0][0] == "http://kong:8000/plaudelm/embed"
         assert call_args[1]["json"]["input"] == "What is GraphRAG?"
         assert result == [0.1] * 768
 

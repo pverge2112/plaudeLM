@@ -3,7 +3,7 @@
 **Feature Branch**: `001-mcp-server`
 **Created**: 2026-03-07
 **Status**: Draft
-**Input**: User description: "MCP Server (TypeScript) — expose all 7 NotebookLM tools via MCP protocol with dual transport (stdio for Claude Desktop/Code, HTTP/SSE for Kong MCP Gateway). Tools: ingest_document, query, search_concepts, add_relationship, list_notebooks, get_document_graph, audio_overview. Clients: FastAPI (for complex ops), Qdrant direct, Neo4j direct. Config: fail-fast env var validation. Containerized in Docker Compose. All 7 tools callable from Claude Desktop via stdio transport."
+**Input**: User description: "MCP Server (TypeScript) — expose all 7 plaudeLM tools via MCP protocol with dual transport (stdio for Claude Desktop/Code, HTTP/SSE for Kong MCP Gateway). Tools: ingest_document, query, search_concepts, add_relationship, list_notebooks, get_document_graph, audio_overview. Clients: FastAPI (for complex ops), Qdrant direct, Neo4j direct. Config: fail-fast env var validation. Containerized in Docker Compose. All 7 tools callable from Claude Desktop via stdio transport."
 
 ## User Scenarios & Testing *(mandatory)*
 

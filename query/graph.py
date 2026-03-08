@@ -1,7 +1,7 @@
 """
 Knowledge graph retrieval module — Neo4j-based graph traversal.
 
-Extracts concepts from questions via Kong /notebooklm/chat (llama3.2),
+Extracts concepts from questions via Kong /plaudelm/chat (llama3.2),
 then traverses the Neo4j knowledge graph to find related chunks.
 All LLM calls route through Kong (Article IV.2).
 Neo4j access uses AsyncGraphDatabase driver (Article III.5).
@@ -77,7 +77,7 @@ class GraphRetriever:
         self._neo4j_password = neo4j_password
 
     async def extract_concepts(self, question: str) -> list[str]:
-        """Extract key concepts from a question via Kong /notebooklm/chat.
+        """Extract key concepts from a question via Kong /plaudelm/chat.
 
         Uses llama3.2 with a structured prompt that returns a JSON array of
         concept strings. Falls back to [] on malformed or non-JSON responses
@@ -97,7 +97,7 @@ class GraphRetriever:
             "Example: [\"graphrag\", \"vector search\", \"neo4j\"]\n\n"
             f"Question: {question}"
         )
-        url = f"{self._kong_proxy_url}/notebooklm/chat"
+        url = f"{self._kong_proxy_url}/plaudelm/chat"
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 url,

@@ -20,7 +20,7 @@ Spec #2 (graph extraction) and Spec #3 (query service) cannot begin.
 
 ## Proposed Solution
 
-1. Add `neo4j` service to `docker-compose.yml` (alongside existing Ollama, Qdrant, n8n services; also add stub entries for `query` and `notebooklm-mcp` so service names are stable per IV.4).
+1. Add `neo4j` service to `docker-compose.yml` (alongside existing Ollama, Qdrant, n8n services; also add stub entries for `query` and `plaudelm-mcp` so service names are stable per IV.4).
 2. Add all Neo4j environment variables to `.env.example`.
 3. Create `scripts/init-neo4j.py` — connects to Neo4j via Bolt, creates all constraints and indexes defined in ARCHITECTURE.md, and is idempotent (safe to re-run).
 4. Verify `scripts/init-qdrant.py` uses UUIDs for collection config and is consistent with ARCHITECTURE.md (768-dim, Cosine).
@@ -36,7 +36,7 @@ Spec #2 (graph extraction) and Spec #3 (query service) cannot begin.
 - [ ] AC-5: After `init-neo4j.py`, all indexes exist: `Chunk(notebook)`, `Concept(notebooks)`, `Document(notebook)`, full-text index `conceptNameIndex` on `Concept.name`
 - [ ] AC-6: `init-neo4j.py` is idempotent — running it twice produces no errors and no duplicate constraints/indexes
 - [ ] AC-7: `.env.example` documents all required Neo4j variables: `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`, `NEO4J_AUTH`
-- [ ] AC-8: `docker-compose.yml` includes stub service definitions for `query` and `notebooklm-mcp` (image placeholder, commented out) so service names are locked per CONSTITUTION.md IV.4
+- [ ] AC-8: `docker-compose.yml` includes stub service definitions for `query` and `plaudelm-mcp` (image placeholder, commented out) so service names are locked per CONSTITUTION.md IV.4
 - [ ] AC-9: All Neo4j data persisted to a named Docker volume (not bind mount); volume survives `docker compose restart`
 
 ---
