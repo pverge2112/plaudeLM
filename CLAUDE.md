@@ -268,3 +268,10 @@ TEST_NEO4J_URI=bolt://localhost:7687
 - Do not merge failing tests — ever
 - Do not start implementation without a spec — ever
 
+
+## Active Technologies
+- TypeScript 5.x, Node.js 20 LTS + `@modelcontextprotocol/sdk` (official MCP SDK), `zod` (schema validation), `neo4j-driver` (async Neo4j client), `@qdrant/js-client-rest` (Qdrant REST client), `node-fetch` / native `fetch` (FastAPI HTTP client) (001-mcp-server)
+- N/A (server is stateless — Qdrant and Neo4j are owned by other services) (001-mcp-server)
+
+## Recent Changes
+- 001-mcp-server: Added TypeScript 5.x, Node.js 20 LTS + `@modelcontextprotocol/sdk` (official MCP SDK), `zod` (schema validation), `neo4j-driver` (async Neo4j client), `@qdrant/js-client-rest` (Qdrant REST client), `node-fetch` / native `fetch` (FastAPI HTTP client)
