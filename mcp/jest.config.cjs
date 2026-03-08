@@ -16,5 +16,11 @@ module.exports = {
     { ...sharedBase, displayName: 'unit', testMatch: ['<rootDir>/tests/unit/**/*.test.ts'] },
     { ...sharedBase, displayName: 'contract', testMatch: ['<rootDir>/tests/contract/**/*.test.ts'] },
     { ...sharedBase, displayName: 'integration', testMatch: ['<rootDir>/tests/integration/**/*.test.ts'] },
+    {
+      ...sharedBase,
+      displayName: 'e2e',
+      roots: ['<rootDir>/../tests/e2e'],
+      testMatch: ['**/*.test.ts'],
+    },
   ],
 };
