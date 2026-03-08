@@ -8,9 +8,9 @@
 
 ## Current Status
 
-**Phase:** Spec #3 complete ✅ — all three PRs merged to dev — ready for Spec #4 (MCP Server)
+**Phase:** Spec #4 (MCP Server) complete ✅ — on branch `001-mcp-server`, 2 commits, ready for PR to dev
 **Last updated:** 2026-03-07
-**Next action:** Write GitHub Issue spec for Spec #4 (MCP Server) first. Branch: `feat/NNN-mcp-server`. No code before spec.
+**Next action:** Open PR for `001-mcp-server` → dev. Then Spec #5 (Kong MCP Gateway Route).
 
 ---
 
@@ -47,6 +47,18 @@
 - [x] **29/29 integration tests green** (21 Spec #1 + 8 Spec #2)
 - [x] GitHub Issue #3 created, PR #4 merged → dev
 
+### Spec #4 — MCP Server (branch 001-mcp-server, ready for PR)
+- [x] Full speckit workflow: specify → plan → tasks → analyze → implement
+- [x] `specs/001-mcp-server/` — spec.md, plan.md, research.md, data-model.md, contracts/, quickstart.md, tasks.md
+- [x] `mcp/src/config.ts` — fail-fast env var validation
+- [x] `mcp/src/clients/` — FastApiClient, QdrantClientWrapper, Neo4jClient
+- [x] `mcp/src/tools/` — all 7 tools: ingest, query, search_concepts, add_relationship, list_notebooks, get_document_graph, audio_overview
+- [x] `mcp/src/server.ts` + `mcp/src/index.ts` — dual transport (stdio + SSE)
+- [x] 17 test suites: 11 unit + 6 contract; **72/72 tests green in 0.92s**
+- [x] `mcp/Dockerfile` + `.dockerignore`
+- ⚠️ docker-compose.yml service (T043) NOT done — needs integration with live services
+- ⚠️ Integration tests (T020, T025, T034, T039, T040) — require live services; deferred
+
 ### Spec #3 — Query Service (merged to dev, PR #6)
 - [x] `query/config.py` — fail-fast env var validation
 - [x] `query/models.py` — Pydantic v2: QueryRequest, QueryResponse, Citation, etc.
@@ -73,7 +85,9 @@ Nothing in progress.
 
 ### SPEC WRITING FIRST — create GitHub Issues before any implementation
 
-**Spec #4 — MCP Server** (beads: plaudeLM-lk7, P1)
+**~~Spec #4 — MCP Server~~** (beads: plaudeLM-lk7 CLOSED ✅ — see Completed above)
+
+**Spec #5 — Kong MCP Gateway Route**
 - `mcp/src/index.ts` — entry point, transport selection (stdio/sse)
 - `mcp/src/server.ts` — tool registry
 - `mcp/src/tools/` — all 7 tools (ingest, query, search_concepts, add_relationship, list_notebooks, get_document_graph, audio_overview)
@@ -87,6 +101,7 @@ Nothing in progress.
 **Spec #5 — Kong MCP Gateway Route**
 - Add `/notebooklm/mcp/*` route to `kong/kong-ollama.yaml`
 - Plugins: ai-mcp-proxy, key-auth, http-log
+- Add notebooklm-mcp service to docker-compose.yml (deferred from Spec #4)
 - Acceptance: tool call via Kong SSE returns same result as stdio
 
 **Spec #6 — Test Suite**
@@ -153,6 +168,11 @@ Nothing in progress.
 | 2026-03-07 | n8n Code node sandbox API (task runner) | $env['KEY'] not process.env; helpers.httpRequest() not $helpers; runOnceForEachItem returns {json:...}; crypto global not exposed |
 | 2026-03-07 | n8n owner setup: POST /rest/owner/setup {email, firstName, lastName, password (≥8 chars, ≥1 uppercase)} | Login field is emailOrLdapLoginId. Owner must exist before Code nodes execute. |
 | 2026-03-07 | Kong not deployed until core stack is stable | User decision: get neo4j+qdrant+ollama+n8n working first; add Kong as Spec #5 |
+| 2026-03-07 | jest.config.cjs (not .ts or .js) required when package.json has `"type": "module"` | ESM package breaks jest.config.ts bootstrap; .cjs forces CommonJS for jest config only |
+| 2026-03-07 | tsconfig.test.json with `"module": "CommonJS"` + `"isolatedModules": true` | CJS enables jest.mock() hoisting; isolatedModules avoids ts-jest loading full SDK type graph (OOM fix) |
+| 2026-03-07 | ts-jest `diagnostics: false` required for test mocks | @types/jest `ResolvedValue<T>` = `never` when T not PromiseLike; disabling diagnostics unblocks mock typing |
+| 2026-03-07 | jest.mock() with `__esModule: true` required for ESM default imports | Without flag, TypeScript's __importDefault wraps the mock object again, causing double-nesting |
+| 2026-03-07 | `beforeAll` (not `beforeEach`) for dynamic import + module registration | resetModules() + dynamic import in beforeEach causes ts-jest to recompile full dep tree per test → OOM |
 | 2026-03-07 | Ollama healthcheck uses TCP not curl | Ollama image has no curl; use bash TCP check |
 | 2026-03-07 | N8N_SECURE_COOKIE=false for local dev | n8n requires HTTPS for secure cookies; HTTP-only local dev needs this off |
 | 2026-03-07 | N8N_RUNNERS_ENABLED=true required | n8n 1.90.2 needs task runners for Code nodes to execute; without it, Code nodes silently skip |
@@ -178,11 +198,25 @@ Nothing in progress.
 - **PDF ingest via n8n** — requires multipart/form-data (binary), not JSON. Document in MCP `ingest_document` error messages.
 - **MCP transport switching** — when `MCP_TRANSPORT=sse`, stdio handler must not be initialized. Validate at startup in `config.ts`.
 - **Kong MCP Gateway** — `ai-mcp-proxy` plugin config needs to match the MCP server's SSE endpoint path exactly. Test with `deck diff` before `deck sync`.
-- **mcp/ and tests/e2e/ do not exist yet** — Spec #4 (MCP Server) and Spec #6 (Test Suite) are next. `npm test` and `npm run test:contract` have nothing to run.
+- **mcp/ exists** — Spec #4 complete. `npm test` runs 72 tests in 0.92s. Integration tests require live services.
+- **tests/e2e/ does not exist yet** — Spec #6 (Test Suite e2e) is next after Spec #5.
+- **docker-compose.yml missing notebooklm-mcp service** — deferred to Spec #5.
+- **audio_overview FastAPI `/audio-overview` endpoint not implemented** — Spec #7. The MCP tool exists and delegates to FastAPI; the FastAPI side is not yet built.
 
 ---
 
 ## Session Notes
+
+### 2026-03-07 — Spec #4 MCP Server implementation
+- Full speckit workflow (specify → plan → tasks → analyze → implement) run for first time
+- speckit.analyze caught critical: Out of Scope incorrectly excluded contract+integration tests — fixed before implementing
+- Implemented all 7 MCP tools, 3 clients, dual transport, fail-fast config, Dockerfile
+- Major Jest/TypeScript fixes: ESM→CJS, jest.config.cjs, tsconfig.test.json, diagnostics:false, isolatedModules:true
+- Neo4j mock fix: added `__esModule: true` to mock factory for default import
+- concepts.test.ts OOM fix: moved import from `beforeEach` to `beforeAll` (ts-jest recompile per test = OOM)
+- Final: 17/17 suites, 72/72 tests, 0.92s; production build clean
+- beads plaudeLM-lk7 CLOSED
+- 2 commits on `001-mcp-server`: specs artifacts + mcp implementation
 
 ### 2026-03-07 — Spec #3 + merge session
 - PR #4 opened for feat/3-n8n-graph-extraction → dev
