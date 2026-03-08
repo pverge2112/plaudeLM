@@ -8,9 +8,9 @@
 
 ## Current Status
 
-**Phase:** Spec #5 (Kong MCP Gateway) spec + plan written on `002-kong-mcp-gateway`. PR #8 (`001-mcp-server` → dev) open and ready to merge. Decision: defer Kong AI/MCP proxy plugins; get full stack running first.
+**Phase:** Spec #5 (Kong MCP Gateway) fully specked — spec.md + plan.md + research.md + tasks.md all written and committed on `002-kong-mcp-gateway`. PR #8 merged to dev. Ready for implementation (T001–T021).
 **Last updated:** 2026-03-08
-**Next action:** Merge PR #8. Then on `002-kong-mcp-gateway`: create `kong/kong.yaml`, start query + MCP services via docker-compose, run MCP integration tests against live stack.
+**Next action:** On `002-kong-mcp-gateway`: implement T001–T021 in order. Start with T001 (verify docker-compose.yml notebooklm-mcp service), T002 (add KONG_MCP_API_KEY to .env.example), T003 (create kong/kong.yaml skeleton), then TDD red phase (T004–T005).
 
 ---
 
@@ -53,15 +53,16 @@
 - [x] `mcp/jest.config.cjs` + `mcp/tsconfig.test.json` + `mcp/package.json` — e2e project wired
 - [x] **94/94 tests green** (72 unit+contract + 13 integration + 9 e2e)
 
-### Spec #5 — Kong MCP Gateway (branch 002-kong-mcp-gateway, spec+plan written)
-- [x] `specs/002-kong-mcp-gateway/spec.md` — 3 user stories, 11 FRs, 6 SCs, checklist green
+### Spec #5 — Kong MCP Gateway (branch 002-kong-mcp-gateway, full speckit complete)
+- [x] `specs/002-kong-mcp-gateway/spec.md` — 3 user stories, 11 FRs, 6 SCs; FR-010 corrected (deck sync → POST /config)
 - [x] `specs/002-kong-mcp-gateway/plan.md` — constitution check, 5-phase plan, structure
 - [x] `specs/002-kong-mcp-gateway/research.md` — 8 research decisions
+- [x] `specs/002-kong-mcp-gateway/tasks.md` — 21 tasks across 6 phases; speckit.analyze run + 5 issues remediated
 - [x] `docker-compose.yml` — `notebooklm-mcp` service added; `query` host port 8000→8081 (port conflict fix)
 - [x] `.env.example` — `QUERY_SERVICE_URL` fixed (8080→8000 internal port)
-- ⚠️ `kong/kong.yaml` — NOT yet created (empty directory); must be created before `docker compose up`
-- ⚠️ MCP integration tests not yet run against live stack (query service not yet started in Docker)
-- ⚠️ Decision: defer Kong AI/MCP proxy plugins (`ai-mcp-proxy`) — get core stack working first
+- ⚠️ `kong/kong.yaml` — NOT yet created; T003 creates skeleton; must exist before `docker compose up`
+- ⚠️ MCP integration tests (kong-sse.test.ts) not yet written — T004 is the red phase
+- ⚠️ ai-mcp-proxy availability unknown — T006 verifies before adding plugin
 
 ### Spec #4 — MCP Server (branch 001-mcp-server, ready for PR)
 - [x] Full speckit workflow: specify → plan → tasks → analyze → implement
@@ -186,6 +187,9 @@ Nothing in progress.
 | 2026-03-08 | MCP SSE uses two HTTP paths | GET /sse (SSE connection) + POST /messages?sessionId=X (client→server); both must be routed by Kong; health at GET /health |
 | 2026-03-08 | Kong DB-less mode: config reload via POST /config | Edit kong/kong.yaml → curl -sX POST http://localhost:8001/config -F config=@kong/kong.yaml; deck validate for syntax; deck sync is ephemeral for DB-less Kong |
 | 2026-03-08 | query/venv required for local pytest | No system-level pytest; create venv + install requirements.txt + requirements-dev.txt before running pytest on host |
+| 2026-03-08 | Kong MCP route requires two entries with strip_path:true | MCP SSE protocol uses GET /sse + POST /messages; a single prefix route with strip_path:false forwards the full Kong path to upstream — MCP server returns 404; must use two routes each with strip_path:true so upstream receives /sse and /messages |
+| 2026-03-08 | deck validate must precede POST /config apply | validate is a syntax check that runs without a live Kong instance; running apply first defeats the safety check; workflow: edit → validate → apply → diff |
+| 2026-03-08 | http-log plugin requires a live HTTP endpoint at config-apply time | Kong rejects kong.yaml if http_endpoint is unreachable; for local dev: use go-httpbin (mccutchen/go-httpbin) as log sink or substitute file-log to /dev/stdout |
 
 ---
 
@@ -203,10 +207,10 @@ Nothing in progress.
 - **Google Drive ingest** — requires Google OAuth 2.0 app. Set up at console.cloud.google.com; credentials in `.env` and n8n Credentials UI.
 - **PDF ingest via n8n** — requires multipart/form-data (binary), not JSON. Document in MCP `ingest_document` error messages.
 - **MCP transport switching** — when `MCP_TRANSPORT=sse`, stdio handler must not be initialized. Validate at startup in `config.ts`.
-- **Kong MCP Gateway** — `ai-mcp-proxy` plugin config needs to match the MCP server's SSE endpoint path exactly. Test with `deck diff` before `deck sync`.
-- **mcp/ exists** — Spec #4 complete. `npm test` runs 72 unit+contract tests. Integration + e2e tests in PR #8 (001-mcp-server); run `npm run test:integration` and `npm run test:e2e` once services are live.
-- **tests/e2e/ exists** — on `001-mcp-server` branch (PR #8); will be on `dev` after merge. Not yet on `002-kong-mcp-gateway` — rebase after PR #8 merges.
-- **kong/ directory is empty** — `kong/kong.yaml` must be created before `docker compose up` (Kong will fail to start without it). File must be at `kong/kong.yaml` (not `kong-ollama.yaml`).
+- **Kong MCP Gateway routes require two separate route entries** — MCP SSE protocol uses `GET /sse` (SSE stream) and `POST /messages` (client→server). Kong must have one route per path with `strip_path: true`. A single prefix route with `strip_path: false` would forward the full `/notebooklm/mcp/sse` path to the upstream — MCP server has no route there and returns 404.
+- **ai-mcp-proxy plugin availability unknown** — verify with `curl http://localhost:8001/plugins/schema/ai-mcp-proxy` before Phase 3 (T006). If 404, plugin is not available on this Kong version; `key-auth` + `http-log` provide auth + observability without it.
+- **http-log requires a real HTTP endpoint** — Kong will fail to apply config if `http_endpoint` is unreachable at startup. For local dev: use `go-httpbin` (`mccutchen/go-httpbin`) or substitute `file-log` plugin.
+- **kong/ directory is empty** — `kong/kong.yaml` must be created before `docker compose up` (Kong will fail to start without it). T003 creates the skeleton.
 - **query service not yet running in Docker** — start with `docker compose up -d query` after creating `kong/kong.yaml`. Host port is now 8081 (was 8000).
 - **notebooklm-mcp service added to docker-compose.yml** — uncommented on `002-kong-mcp-gateway`; defaults to `MCP_TRANSPORT=sse`. For local Claude Desktop (stdio), run the MCP server directly with `MCP_TRANSPORT=stdio node dist/index.js`.
 - **audio_overview FastAPI `/audio-overview` endpoint not implemented** — Spec #7. The MCP tool exists and delegates to FastAPI; the FastAPI side is not yet built.
@@ -216,6 +220,21 @@ Nothing in progress.
 ---
 
 ## Session Notes
+
+### 2026-03-08 — Spec #5 tasks.md + speckit.analyze remediation session
+- Merged PR #8 (001-mcp-server → dev): Specs #4 + #6 complete, 94/94 tests on dev
+- Cleaned stale branches: deleted local `001-mcp-server`, remote `origin/001-mcp-server`, `origin/spec/1-neo4j-infrastructure`
+- Generated `specs/002-kong-mcp-gateway/tasks.md` — 21 tasks across 6 phases
+- Ran speckit.analyze: 8 findings (0 critical, 3 high, 3 medium, 2 low)
+- Remediated all 5 actionable issues:
+  - F1: Added T006 (ai-mcp-proxy availability check) + T010 (conditional add)
+  - I1: Fixed FR-010 in spec.md — deck sync → POST /config
+  - I2: Fixed T008 — single-route/strip_path:false → two explicit routes with strip_path:true
+  - B1: Resolved http-log placeholder — T009 gives concrete options (go-httpbin or file-log)
+  - A1: Swapped T013/T014 — deck validate before POST /config apply
+- Test runs: 72/72 MCP unit+contract ✅; 30/30 query unit ✅
+- Committed: `spec(005): generate tasks.md + fix spec.md FR-010` (b0963ee)
+- Next: implement T001–T021 in order on 002-kong-mcp-gateway
 
 ### 2026-03-08 — Spec #5 spec/plan + stack prep session
 - Ran speckit.analyze on 001-mcp-server: 10 findings, no blockers, all artifact-level (not implementation)
