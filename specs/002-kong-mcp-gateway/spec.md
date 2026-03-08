@@ -77,7 +77,7 @@ The MCP server runs as a named service in the Docker Compose stack alongside all
 - **FR-007**: The Kong route MUST apply the `http-log` plugin to capture all MCP tool call requests and responses for observability.
 - **FR-008**: The Kong upstream timeout for the MCP route MUST be set to at least 120 seconds to accommodate Ollama inference during `query` and `ingest_document` calls.
 - **FR-009**: All 7 MCP tools MUST return results via the Kong SSE path that are functionally identical to results returned via direct stdio — no behavioral difference for any tool.
-- **FR-010**: The Kong configuration MUST be expressed as a `deck` declarative config file and applied via `deck sync` — no manual Kong Admin API calls are permitted.
+- **FR-010**: The Kong configuration MUST be expressed as a `deck` declarative config file (`kong/kong.yaml`) and applied to the running Kong instance via `curl -sX POST http://localhost:8001/config -F config=@kong/kong.yaml`. `deck validate` MUST be run for syntax checking before every apply. `deck diff` MUST be run after apply to verify zero drift. Kong DB-less mode does not support `deck sync` as a deployment mechanism — `deck sync` is NOT permitted as the apply method.
 - **FR-011**: A Kong consumer (representing Paul as the API client) MUST be defined in the `deck` config with an `api-key` credential; Claude clients use this key to authenticate.
 
 ### Key Entities
