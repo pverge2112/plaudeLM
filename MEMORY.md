@@ -8,9 +8,9 @@
 
 ## Current Status
 
-**Phase:** Spec #5 (Kong MCP Gateway) — stack running, Azure OpenAI configured in Konnect, ingest pipeline being debugged end-to-end.
-**Last updated:** 2026-03-08
-**Next action:** Test `ingest_document` end-to-end — verify n8n executes cleanly with Azure models via Kong → test all 7 MCP tools → dump kong.yaml from Konnect for IaC.
+**Phase:** Spec #5 (Kong MCP Gateway) — stack fully operational end-to-end; ingest, search_concepts, query, get_document_graph, list_notebooks all confirmed working.
+**Last updated:** 2026-03-09
+**Next action:** Spec #7 (Audio Overview) or dump kong.yaml from Konnect for IaC (T002/T003).
 
 ---
 
@@ -263,13 +263,25 @@ Nothing in progress.
 - **Kong RAG Injector not usable** — only supports Redis/pgvector and cloud embedding providers; not compatible with Qdrant + Ollama local stack.
 - **Embed route decision pending** — user asked why separate embed route; options: (A) keep through Kong for unified observability, (B) call Ollama directly from query service. Not yet decided — confirm before writing integration tests.
 - **plaudelm-mcp running in SSE mode** — MCP_TRANSPORT=sse in .env; all clients connect via Kong. For local stdio debugging: `MCP_TRANSPORT=stdio node dist/index.js` outside Docker.
-- **audio_overview FastAPI `/audio-overview` endpoint not implemented** — Spec #7. The MCP tool exists and delegates to FastAPI; the FastAPI side is not yet built.
+- **audio_overview FastAPI `/audio-overview` endpoint not implemented** — Spec #7. The MCP tool exists and delegates to FastAPI; the FastAPI side is not yet built. Returns 404 from query service — expected.
+- **search_concepts uses Lucene fulltext tokenization** — query on individual words only. "rate limiting" or "rate" works; "ratelimiting" (concatenated) returns 0 results. Index tokenizes on whitespace and hyphens.
 - **query/venv** — must be created locally before running pytest: `python3 -m venv venv && ./venv/bin/pip install -r requirements.txt -r requirements-dev.txt`
 - **Stale branches cleaned** — deleted: feat/1-neo4j-infrastructure, feat/3-n8n-graph-extraction, feat/5-query-service, feat/7-mcp-server, spec/1-neo4j-infrastructure (all fully merged to dev)
 
 ---
 
 ## Session Notes
+
+### 2026-03-09 — End-to-end ingest + MCP tool debug session
+- Fixed n8n respondToWebhook double-encoding (JSON.stringify → object literal)
+- Fixed Extract Graph Entities: `options:{temperature}` is Ollama syntax, Azure returns 400, catch swallowed it → 0 concepts; removed options field
+- Fixed ingest.ts swallowed catch (CONSTITUTION IV-B.2); shape-mismatch error now shows actual response
+- Fixed setup-n8n.sh: PATCH upsert (PUT returns 404 on /rest/); deduplication added (find all matches, patch first, delete rest)
+- Added CONSTITUTION IV.5: docker builds must always use --no-cache
+- Confirmed working tools: ingest_document ✅, search_concepts ✅, get_document_graph ✅, list_notebooks ✅, query ✅
+- audio_overview: not implemented (Spec #7, FastAPI side missing — expected 404)
+- search_concepts uses Lucene tokenization — query must be individual words not concatenated (e.g. "rate" not "ratelimiting")
+- 73/73 MCP tests green + 30/30 query unit tests green; committed 8a68be5
 
 ### 2026-03-08 — Spec #5 Azure migration + ingest pipeline debug session
 - Replaced Ollama with Azure OpenAI: gpt-4o-mini (chat) + text-embedding-3-large (embeddings)
