@@ -90,9 +90,9 @@
 
 ## Decision 8: Docker Compose Service
 
-**Decision**: Add `notebooklm-mcp` service to `docker-compose.yml`. Build from `./mcp`. Environment: all required env vars from `.env`. Healthcheck: `curl -f http://localhost:3000/health` (SSE mode) or skip (stdio mode — no HTTP port). `depends_on`: `query` service.
+**Decision**: Add `plaudelm-mcp` service to `docker-compose.yml`. Build from `./mcp`. Environment: all required env vars from `.env`. Healthcheck: `curl -f http://localhost:3000/health` (SSE mode) or skip (stdio mode — no HTTP port). `depends_on`: `query` service.
 
-**Rationale**: Service name `notebooklm-mcp` is already defined in ARCHITECTURE.md and must remain stable for future k3s migration (CONSTITUTION IV.4). Depends on `query` service (FastAPI) being healthy before starting.
+**Rationale**: Service name `plaudelm-mcp` is already defined in ARCHITECTURE.md and must remain stable for future k3s migration (CONSTITUTION IV.4). Depends on `query` service (FastAPI) being healthy before starting.
 
 **Alternatives Considered**:
 - Run MCP server outside Docker: rejected — inconsistent with rest of stack; no reproducible environment.

@@ -1,35 +1,17 @@
 services:
-
-  # ---------------------------------------------------------------------------
-  # Ollama — local LLM inference (llama3.2, nomic-embed-text)
-  # Never called directly — always via Kong AI Gateway
-  # ---------------------------------------------------------------------------
-  ollama:
-    image: ollama/ollama:latest
-    container_name: notebooklm-ollama
-    volumes:
-      - ollama_data:/root/.ollama
-    ports:
-      - "11434:11434"
-    healthcheck:
-      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/11434' || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-    restart: unless-stopped
-
   # ---------------------------------------------------------------------------
   # Qdrant — vector store (one collection per notebook: kong, personal, music)
   # ---------------------------------------------------------------------------
   qdrant:
     image: qdrant/qdrant:v1.13.5
-    container_name: notebooklm-qdrant
+    container_name: plaudelm-qdrant
     volumes:
       - qdrant_data:/qdrant/storage
     ports:
-      - "6333:6333"   # REST
-      - "6334:6334"   # gRPC
+      - "6333:6333" # REST
+      - "6334:6334" # gRPC
+    networks:
+      - plaudelm
     healthcheck:
       test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6333' || exit 1"]
       interval: 15s
@@ -44,19 +26,21 @@ services:
   # ---------------------------------------------------------------------------
   neo4j:
     image: neo4j:5-community
-    container_name: notebooklm-neo4j
+    container_name: plaudelm-neo4j
     environment:
       NEO4J_AUTH: ${NEO4J_AUTH}
       NEO4J_server_memory_heap_max__size: ${NEO4J_HEAP_MAX:-1G}
       NEO4J_server_memory_pagecache_size: ${NEO4J_PAGECACHE:-512M}
       NEO4J_server_default__listen__address: 0.0.0.0
-      NEO4J_PLUGINS: '[]'
+      NEO4J_PLUGINS: "[]"
     volumes:
       - neo4j_data:/data
       - neo4j_logs:/logs
     ports:
-      - "7474:7474"   # Browser / HTTP
-      - "7687:7687"   # Bolt
+      - "7474:7474" # Browser / HTTP
+      - "7687:7687" # Bolt
+    networks:
+      - plaudelm
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:7474"]
       interval: 15s
@@ -70,7 +54,7 @@ services:
   # ---------------------------------------------------------------------------
   n8n:
     image: n8nio/n8n:latest
-    container_name: notebooklm-n8n
+    container_name: plaudelm-n8n
     environment:
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
       N8N_HOST: ${N8N_HOST:-localhost}
@@ -82,11 +66,9 @@ services:
       N8N_SECURE_COOKIE: "false"
       N8N_RUNNERS_ENABLED: "true"
       NODE_FUNCTION_ALLOW_BUILTIN: "crypto"
-      # LLM endpoints used by ingest pipeline Code nodes.
-      # Dev default: Ollama direct (http://ollama:11434/api/*)
-      # Prod: set to Kong routes (http://kong:8000/notebooklm/*)
-      CHAT_ENDPOINT: ${CHAT_ENDPOINT:-http://ollama:11434/api/chat}
-      EMBED_ENDPOINT: ${EMBED_ENDPOINT:-http://ollama:11434/api/embed}
+      # LLM endpoints used by ingest pipeline Code nodes — always Kong routes
+      CHAT_ENDPOINT: ${CHAT_ENDPOINT:-http://kong:8000/plaudelm/chat}
+      EMBED_ENDPOINT: ${EMBED_ENDPOINT:-http://kong:8000/plaudelm/embed}
       # Data store URLs — Docker service names (stable per IV.4)
       QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
       NEO4J_HTTP_URL: ${NEO4J_HTTP_URL:-http://neo4j:7474}
@@ -97,15 +79,15 @@ services:
       - ./n8n/workflows:/workflows:ro
     ports:
       - "5678:5678"
+    networks:
+      - plaudelm
     depends_on:
       qdrant:
         condition: service_healthy
       neo4j:
         condition: service_healthy
-      ollama:
-        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:5678/healthz"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5678/healthz || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -113,37 +95,35 @@ services:
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
-  # Kong AI Gateway — routes all LLM/embedding calls to Ollama
-  # Provides observability, rate limiting, PII sanitization
+  # Kong Gateway (Konnect Data Plane)
+  # Routes all LLM/embedding calls to Ollama; proxies MCP traffic
+  # Provides observability, rate limiting, PII sanitization, key-auth
   # ---------------------------------------------------------------------------
   kong:
-    image: kong/kong-gateway:latest
-    container_name: notebooklm-kong
-    environment:
-      KONG_DATABASE: "off"
-      KONG_DECLARATIVE_CONFIG: /kong/declarative/kong.yaml
-      KONG_PROXY_LISTEN: 0.0.0.0:8000
-      KONG_ADMIN_LISTEN: 0.0.0.0:8001
-      KONG_LOG_LEVEL: ${KONG_LOG_LEVEL:-warn}
-    volumes:
-      - ./kong:/kong/declarative:ro
+    image: kong/kong-gateway:3.13
+    container_name: plaudelm-kong
     ports:
-      - "8000:8000"   # Proxy
-      - "8001:8001"   # Admin API
+      - "8000:8000" # HTTP proxy
+      - "8443:8443" # HTTPS proxy
+    networks:
+      - plaudelm
+    env_file:
+      - api-gw.env
+    volumes:
+      - ./kong/api-gateway/cert:/etc/secrets/kong-cluster-cert:ro
     healthcheck:
       test: ["CMD", "kong", "health"]
-      interval: 15s
+      interval: 10s
       timeout: 5s
       retries: 5
       start_period: 15s
-    restart: unless-stopped
 
   # ---------------------------------------------------------------------------
   # Query Service — FastAPI GraphRAG hybrid retrieval (Spec #3)
   # ---------------------------------------------------------------------------
   query:
     build: ./query
-    container_name: notebooklm-query
+    container_name: plaudelm-query
     environment:
       QDRANT_URL: ${QDRANT_URL}
       NEO4J_URI: ${NEO4J_URI}
@@ -151,16 +131,20 @@ services:
       NEO4J_PASSWORD: ${NEO4J_PASSWORD}
       KONG_PROXY_URL: ${KONG_PROXY_URL}
     ports:
-      - "8000:8000"
+      - "8081:8000" # host 8081 avoids conflict with Kong proxy on 8000
+    networks:
+      - plaudelm
     depends_on:
       qdrant:
         condition: service_healthy
       neo4j:
         condition: service_healthy
-      ollama:
-        condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      test:
+        [
+          "CMD-SHELL",
+          'python -c "import urllib.request; urllib.request.urlopen(''http://localhost:8000/health'')"',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -169,34 +153,50 @@ services:
 
   # ---------------------------------------------------------------------------
   # MCP Server — TypeScript MCP server (Spec #4)
-  # Stub: build context not yet available
+  # Runs in SSE mode; all clients connect via Kong proxy on port 8000
   # ---------------------------------------------------------------------------
-  # notebooklm-mcp:
-  #   build: ./mcp
-  #   container_name: notebooklm-mcp
-  #   image: notebooklm-mcp:latest
-  #   environment:
-  #     MCP_TRANSPORT: ${MCP_TRANSPORT:-stdio}
-  #     MCP_PORT: ${MCP_PORT:-3000}
-  #     QUERY_SERVICE_URL: ${QUERY_SERVICE_URL}
-  #     QDRANT_URL: ${QDRANT_URL}
-  #     NEO4J_URI: ${NEO4J_URI}
-  #     NEO4J_USER: ${NEO4J_USER}
-  #     NEO4J_PASSWORD: ${NEO4J_PASSWORD}
-  #     N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL}
-  #   ports:
-  #     - "3000:3000"
-  #   depends_on:
-  #     - query
+  plaudelm-mcp:
+    build: ./mcp
+    container_name: plaudelm-mcp
+    environment:
+      MCP_TRANSPORT: ${MCP_TRANSPORT:-sse}
+      MCP_PORT: ${MCP_PORT:-3000}
+      QUERY_SERVICE_URL: ${QUERY_SERVICE_URL:-http://query:8000}
+      QDRANT_URL: ${QDRANT_URL}
+      NEO4J_URI: ${NEO4J_URI}
+      NEO4J_USER: ${NEO4J_USER}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+      N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL}
+    ports:
+      - "3000:3000"
+    networks:
+      - plaudelm
+    depends_on:
+      query:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'node -e "require(''http'').get(''http://localhost:3000/health'', r => process.exit(r.statusCode === 200 ? 0 : 1)).on(''error'', () => process.exit(1))"',
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+networks:
+  plaudelm:
+    name: plaudelm-network
+    driver: bridge
 
 volumes:
-  ollama_data:
-    name: notebooklm-ollama-data
   qdrant_data:
-    name: notebooklm-qdrant-data
+    name: plaudelm-qdrant-data
   neo4j_data:
-    name: notebooklm-neo4j-data
+    name: plaudelm-neo4j-data
   neo4j_logs:
-    name: notebooklm-neo4j-logs
+    name: plaudelm-neo4j-logs
   n8n_data:
-    name: notebooklm-n8n-data
+    name: plaudelm-n8n-data

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-init-qdrant.py — Initialize Qdrant collections for Personal NotebookLM.
+init-qdrant.py — Initialize Qdrant collections for plaudeLM.
 
-Creates the kong, personal, and music collections with 768-dim Cosine vectors
-(nomic-embed-text). Safe to re-run — existing collections are left unchanged
+Creates the kong, personal, and music collections with 3072-dim Cosine vectors
+(text-embedding-3-large). Safe to re-run — existing collections are left unchanged
 (idempotent).
 
 Required environment variables:
@@ -38,7 +38,7 @@ def _require_env(name: str) -> str:
 # ---------------------------------------------------------------------------
 
 NOTEBOOKS: list[str] = ["kong", "personal", "music"]
-VECTOR_SIZE: int = 768
+VECTOR_SIZE: int = 3072
 DISTANCE: Distance = Distance.COSINE
 
 

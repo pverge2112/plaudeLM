@@ -1,4 +1,4 @@
-# CLAUDE.md — Personal NotebookLM
+# CLAUDE.md — plaudeLM
 
 > **Read before doing anything else:**
 > 1. Read `CONSTITUTION.md` — non-negotiable rules. Every rule applies to every task.
@@ -19,7 +19,7 @@
 
 ## Project Overview
 
-A fully local, self-hosted **GraphRAG** knowledge base exposed via an **MCP server**.
+A fully local, self-hosted **GraphRAG** knowledge base exposed via an **MCP server** (plaudeLM).
 All LLM and embedding inference runs locally via Ollama. No external AI API calls.
 All LLM traffic routes through Kong AI Gateway for observability and control.
 Primary interface: Claude (Desktop / Code / claude.ai) via MCP tools.
@@ -60,7 +60,7 @@ Primary interface: Claude (Desktop / Code / claude.ai) via MCP tools.
 ## Repository Structure
 
 ```
-notebooklm/
+plaudelm/
 ├── CLAUDE.md                       # This file — start here
 ├── CONSTITUTION.md                 # Non-negotiable rules
 ├── ARCHITECTURE.md                 # System design reference
@@ -166,16 +166,15 @@ Full tool schemas in `ARCHITECTURE.md`.
 
 | Service | URL |
 |---|---|
-| Ollama | http://localhost:11434 |
 | Qdrant REST | http://localhost:6333 |
 | Qdrant gRPC | localhost:6334 |
 | Neo4j Browser | http://localhost:7474 |
 | Neo4j Bolt | bolt://localhost:7687 |
 | n8n | http://localhost:5678 |
-| Query API | http://localhost:8000 |
+| Query API | http://localhost:8081 (host) / http://localhost:8000 (internal) |
 | MCP Server (SSE) | http://localhost:3000 |
 | Kong Gateway proxy | http://localhost:8000 |
-| Kong Gateway admin | http://localhost:8001 |
+| Kong control plane | Konnect cloud (no local admin API — data plane only) |
 
 ---
 

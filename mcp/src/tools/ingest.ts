@@ -1,12 +1,14 @@
 /**
- * ingest.ts — `ingest_document` tool: document ingestion via FastAPI → n8n.
+ * ingest.ts — `ingest_document` tool: document ingestion via n8n webhook.
  * Implemented in Phase 4 (US2).
+ *
+ * Calls the n8n ingest webhook directly (N8N_WEBHOOK_URL).
+ * FastAPI owns query/retrieval only — ingest is n8n's domain.
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { FastApiClient } from '../clients/fastapi.js';
 import { config } from '../config.js';
 
 const NotebookSchema = z.enum(['kong', 'personal', 'music']);
@@ -55,21 +57,47 @@ export function registerIngestTool(server: McpServer): void {
         throw new McpError(ErrorCode.InvalidParams, parsed.error.errors[0]?.message ?? 'Invalid input');
       }
 
-      const client = new FastApiClient(config.QUERY_SERVICE_URL);
-      const result = await client.post<z.infer<typeof IngestDocumentOutputSchema>>('/ingest', parsed.data);
+      let response: Response;
+      try {
+        response = await fetch(`${config.N8N_WEBHOOK_URL}/ingest`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(parsed.data),
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        throw new McpError(
+          ErrorCode.InternalError,
+          `n8n ingest webhook unavailable — check that n8n is running: ${msg}`,
+        );
+      }
 
+      if (!response.ok) {
+        let detail = 'unknown error';
+        try {
+          const body = (await response.json()) as { detail?: string; message?: string };
+          detail = body.detail ?? body.message ?? detail;
+        } catch {
+          // ignore parse errors
+        }
+        throw new McpError(
+          ErrorCode.InternalError,
+          `n8n ingest webhook error (${response.status}): ${detail}`,
+        );
+      }
+
+      const result = (await response.json()) as unknown;
       const validated = IngestDocumentOutputSchema.safeParse(result);
       if (!validated.success) {
-        throw new McpError(ErrorCode.InternalError, 'ingest service returned unexpected response shape');
+        const preview = JSON.stringify(result).slice(0, 200);
+        throw new McpError(
+          ErrorCode.InternalError,
+          `n8n returned unexpected response shape: ${preview}`,
+        );
       }
 
       return {
-        content: [
-          {
-            type: 'text' as const,
-            text: JSON.stringify(validated.data),
-          },
-        ],
+        content: [{ type: 'text' as const, text: JSON.stringify(validated.data) }],
       };
     },
   );

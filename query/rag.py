@@ -1,7 +1,7 @@
 """
 Vector retrieval module — Qdrant-based RAG.
 
-Embeds questions via Kong /notebooklm/embed (nomic-embed-text),
+Embeds questions via Kong /plaudelm/embed (nomic-embed-text),
 then searches the appropriate Qdrant collection.
 All LLM/embedding calls route through Kong (Article IV.2).
 """
@@ -31,7 +31,7 @@ class RagRetriever:
         self._qdrant_url = qdrant_url
 
     async def embed_question(self, question: str) -> list[float]:
-        """Embed a question via Kong /notebooklm/embed.
+        """Embed a question via Kong /plaudelm/embed.
 
         Args:
             question: The question text to embed.
@@ -42,11 +42,11 @@ class RagRetriever:
         Raises:
             httpx.HTTPError: If the Kong/Ollama request fails.
         """
-        url = f"{self._kong_proxy_url}/notebooklm/embed"
+        url = f"{self._kong_proxy_url}/plaudelm/embed"
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 url,
-                json={"input": question, "model": "nomic-embed-text"},
+                json={"input": question},
                 timeout=30.0,
             )
             response.raise_for_status()

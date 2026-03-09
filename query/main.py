@@ -63,7 +63,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(
-    title="NotebookLM Query Service",
+    title="plaudeLM Query Service",
     description="GraphRAG hybrid retrieval — Qdrant + Neo4j + Ollama via Kong",
     version="0.1.0",
     lifespan=lifespan,
@@ -131,14 +131,13 @@ async def query(request: QueryRequest) -> QueryResponse:
     context = "\n\n".join(context_parts)
     prompt = _ANSWER_PROMPT.format(context=context, question=request.question)
 
-    # Step 5: Generate answer via Kong /notebooklm/chat
+    # Step 5: Generate answer via Kong /plaudelm/chat
     answer = ""
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.post(
-                f"{_config.kong_proxy_url}/notebooklm/chat",
+                f"{_config.kong_proxy_url}/plaudelm/chat",
                 json={
-                    "model": "llama3.2",
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": 0.1,
                     "max_tokens": 512,

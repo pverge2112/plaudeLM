@@ -43,7 +43,7 @@ describe('query tool handler', () => {
   it('returns formatted output with answer and citations', async () => {
     mockPost.mockResolvedValueOnce({
       answer: 'answer text',
-      citations: [{ chunk_id: '123e4567-e89b-12d3-a456-426614174000', document_title: 'doc', chunk_text: 'text', score: 0.9 }],
+      citations: [{ chunk_id: '123e4567-e89b-12d3-a456-426614174000', neo4j_chunk_id: '123e4567-e89b-12d3-a456-426614174000', title: 'doc', chunk_text: 'text', score: 0.9 }],
       concepts_used: ['kong'],
     });
 

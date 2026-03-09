@@ -1,4 +1,4 @@
-# MEMORY.md — Personal NotebookLM
+# MEMORY.md — plaudeLM
 
 > Read this file at the start of every Claude Code session before doing any work.
 > Update this file at the end of every session — mark completions, add decisions, log issues.
@@ -8,9 +8,9 @@
 
 ## Current Status
 
-**Phase:** `001-mcp-server` committed (94/94 tests green) — PR to dev pending. Spec #5 spec written on branch `002-kong-mcp-gateway`.
-**Last updated:** 2026-03-08
-**Next action:** Open PR for `001-mcp-server` → dev. Then switch to `002-kong-mcp-gateway` and run `/speckit.plan`.
+**Phase:** Spec #5 CLOSED ✅ — all 3 user stories complete; 5/5 Kong integration tests green; cold-start + restart verified. Ready for Spec #7.
+**Last updated:** 2026-03-09
+**Next action:** Spec #7 (Audio Overview) — FastAPI `/audio-overview` + `audio_overview` MCP tool. Requires new spec issue before any implementation.
 
 ---
 
@@ -35,8 +35,8 @@
 
 ### Kong AI Gateway (foundation)
 - [x] `kong/kong-ollama.yaml` — decK config
-  - `/notebooklm/embed` → Ollama nomic-embed-text (ai-proxy, http-log)
-  - `/notebooklm/chat` → Ollama llama3.2 (ai-proxy, ai-rate-limiting-advanced, ai-pii-sanitizer, http-log)
+  - `/plaudelm/embed` → Ollama nomic-embed-text (ai-proxy, http-log)
+  - `/plaudelm/chat` → Ollama llama3.2 (ai-proxy, ai-rate-limiting-advanced, ai-pii-sanitizer, http-log)
   - ⚠️ Does NOT yet include MCP Gateway route — needs update in Spec #5
 
 ### Spec #2 — n8n Graph Extraction Step (merged to dev, PR #4)
@@ -46,6 +46,20 @@
 - [x] docker-compose.yml: Ollama TCP healthcheck, n8n task runner env vars
 - [x] **29/29 integration tests green** (21 Spec #1 + 8 Spec #2)
 - [x] GitHub Issue #3 created, PR #4 merged → dev
+
+### Spec #6 — Full Test Suite (CLOSED ✅ — 2026-03-08, committed on 001-mcp-server, in PR #8)
+- [x] `mcp/tests/integration/tools/` — 5 files, 13 integration tests (skip gracefully when services down)
+- [x] `tests/e2e/` — 3 files, 9 e2e tests (kong, personal, music)
+- [x] `mcp/jest.config.cjs` + `mcp/tsconfig.test.json` + `mcp/package.json` — e2e project wired
+- [x] **94/94 tests green** (72 unit+contract + 13 integration + 9 e2e)
+
+### Spec #5 — Kong MCP Gateway (CLOSED ✅ — 2026-03-09, branch 002-kong-mcp-gateway)
+- [x] `specs/002-kong-mcp-gateway/` — spec.md, plan.md, research.md, tasks.md, quickstart.md
+- [x] `kong/api-gateway/deck/kong.yaml` — IaC from `deck dump`; plaudelm-mcp + plaudelm-chat + plaudelm-embed services; ai-mcp-proxy (passthrough-listener) + key-auth on MCP service; synced to Konnect
+- [x] `mcp/tests/integration/tools/kong-mcp.test.ts` — 5 integration tests; **5/5 green** including T4-3 (live list_notebooks call at 134ms)
+- [x] `.env.example` — KONG_MCP_API_KEY documented; KONG_PROXY_URL host-override note; CHAT/EMBED_ENDPOINT updated to Kong routes
+- [x] Cold-start verified; restart policy verified (crash-restart via PID kill)
+- [x] `specs/002-kong-mcp-gateway/quickstart.md` — Claude Desktop + Claude Code config + curl verification steps
 
 ### Spec #4 — MCP Server (branch 001-mcp-server, ready for PR)
 - [x] Full speckit workflow: specify → plan → tasks → analyze → implement
@@ -79,20 +93,6 @@
 
 Nothing in progress.
 
-### Spec #6 — Full Test Suite (CLOSED ✅ — 2026-03-07)
-- [x] `mcp/tests/integration/tools/query.test.ts` — 3 tests (FastAPI skip guard + service-down isError check)
-- [x] `mcp/tests/integration/tools/ingest.test.ts` — 2 tests (FastAPI skip guard + service-down isError check)
-- [x] `mcp/tests/integration/tools/concepts.test.ts` — 4 tests (Neo4j, full-text index guard)
-- [x] `mcp/tests/integration/tools/graph.test.ts` — 2 tests (Neo4j, seeds Document node)
-- [x] `mcp/tests/integration/tools/notebooks.test.ts` — 2 tests (Qdrant + Neo4j)
-- [x] `tests/e2e/personal.e2e.test.ts` — 3 e2e tests (ingest → query → list_notebooks)
-- [x] `tests/e2e/kong.e2e.test.ts` — 3 e2e tests (ingest → query → notebook scoping)
-- [x] `tests/e2e/music.e2e.test.ts` — 3 e2e tests (ingest → query → empty result)
-- [x] `mcp/jest.config.cjs` — added e2e project (roots: ../tests/e2e)
-- [x] `mcp/tsconfig.test.json` — include ../tests/e2e/**/*
-- [x] `mcp/package.json` — added test:e2e script, --forceExit on integration + test:all
-- [x] **94/94 tests green** (72 unit+contract + 13 integration + 9 e2e); integration/e2e skip gracefully when services unavailable
-
 ---
 
 ## Backlog (prioritized)
@@ -100,25 +100,9 @@ Nothing in progress.
 ### SPEC WRITING FIRST — create GitHub Issues before any implementation
 
 **~~Spec #4 — MCP Server~~** (beads: plaudeLM-lk7 CLOSED ✅ — see Completed above)
+**~~Spec #6 — Full Test Suite~~** (CLOSED ✅ — see Completed above)
 
-**Spec #5 — Kong MCP Gateway Route**
-- `mcp/src/index.ts` — entry point, transport selection (stdio/sse)
-- `mcp/src/server.ts` — tool registry
-- `mcp/src/tools/` — all 7 tools (ingest, query, search_concepts, add_relationship, list_notebooks, get_document_graph, audio_overview)
-- `mcp/src/clients/` — FastAPI, Qdrant, Neo4j clients
-- `mcp/src/config.ts` — env var validation (fail-fast)
-- `mcp/Dockerfile`
-- Add to `docker-compose.yml`
-- `claude_desktop_config.json` snippet
-- Acceptance: all 7 tools callable from Claude Desktop via stdio
-
-**Spec #5 — Kong MCP Gateway Route**
-- Add `/notebooklm/mcp/*` route to `kong/kong-ollama.yaml`
-- Plugins: ai-mcp-proxy, key-auth, http-log
-- Add notebooklm-mcp service to docker-compose.yml (deferred from Spec #4)
-- Acceptance: tool call via Kong SSE returns same result as stdio
-
-~~**Spec #6 — Test Suite**~~ (CLOSED ✅)
+**~~Spec #5 — Kong MCP Gateway~~** (CLOSED ✅ — see Completed above)
 
 **Spec #7 — Audio Overview** (beads: plaudeLM-69j, P3)
 - `query/audio.py` — llama3.2 podcast script generation (host + guest format)
@@ -143,10 +127,17 @@ Nothing in progress.
 - [ ] Batch re-extraction on existing chunks with improved prompt
 - [ ] Review workflow via Claude+Cowork
 
-**Cowork Integration**
-- [ ] Task template: trigger ingest via MCP tool
-- [ ] Task template: run notebook query via MCP tool
-- [ ] Task template: graph concept review session
+**Spec #8 — Cowork Integration** (P3, after Spec #5 complete)
+- All clients (Desktop, Code, claude.ai, Cowork) route through Kong SSE — no stdio bypass
+- Folder convention: `~/plaudelm-inbox/{kong,personal,music}/` — drop files here
+- Cowork scheduled task: scan inbox subfolders → call `ingest_document` per file → move to `processed/`
+- PDF gap: Cowork must read + pass content inline (markdown/text) or serve file as local URL; base64 for PDFs TBD
+- Claude Desktop config: `{"url": "http://localhost:8000/plaudelm/mcp/sse", "headers": {"apikey": "..."}}`
+- Tasks to write:
+  - [ ] Cowork task template: inbox folder scan → `ingest_document` per file (scheduled)
+  - [ ] Cowork task template: run notebook query via MCP tool
+  - [ ] Cowork task template: graph concept review session
+  - [ ] Claude Desktop `claude_desktop_config.json` snippet (SSE via Kong) — also covers T020
 
 ---
 
@@ -190,14 +181,67 @@ Nothing in progress.
 | 2026-03-07 | pythonpath=["."] required in pyproject.toml | pytest with unit __init__.py does not auto-add rootdir to sys.path; must be explicit |
 | 2026-03-07 | module-scoped pytest fixtures cannot use function-scoped monkeypatch | Use os.environ.setdefault() in module-scoped fixtures; monkeypatch only in function-scoped tests |
 | 2026-03-07 | /query endpoint gracefully degrades on Kong/Ollama failure | Returns empty results rather than 502 when embedding/graph calls fail; only answer-generation step raises 502 |
+| 2026-03-08 | query host port changed from 8000 to 8081 in docker-compose | Kong proxy also uses host port 8000; conflict prevents both from starting; MCP server uses internal Docker network URL (http://query:8000), no change to env vars |
+| 2026-03-08 | kong/kong.yaml (not kong/kong-ollama.yaml) is the required filename | docker-compose mounts ./kong:/kong/declarative and KONG_DECLARATIVE_CONFIG references kong.yaml; the kong-ollama.yaml name in earlier notes was never the actual filename |
+| 2026-03-08 | Kong AI/MCP proxy plugins deferred | User decision: get core stack (query + MCP server + basic Kong routing) working end-to-end before adding ai-mcp-proxy, ai-rate-limiting-advanced, ai-pii-sanitizer plugins |
+| 2026-03-08 | MCP SSE uses two HTTP paths | GET /sse (SSE connection) + POST /messages?sessionId=X (client→server); both must be routed by Kong; health at GET /health |
+| 2026-03-09 | Kong is Konnect-managed — no local admin API | Data plane only; config applied via `deck sync --konnect-control-plane-name plaudelm kong/api-gateway/deck/kong.yaml`; `deck diff` for drift check; no `curl localhost:8001` |
+| 2026-03-09 | kong.yaml IaC path is `kong/api-gateway/deck/kong.yaml` | Produced by `deck dump`; not `kong/kong.yaml` — all doc references updated |
+| 2026-03-09 | `docker compose kill` marks container as manually stopped — `unless-stopped` does NOT restart | Use `docker exec <container> kill -9 1` to simulate a real crash and verify restart policy |
+| 2026-03-09 | `KONG_PROXY_URL=http://kong:8000` in .env is the internal Docker network URL | Running integration tests from the host requires `KONG_PROXY_URL=http://localhost:8000` override — Docker DNS name `kong` is not resolvable outside the container network |
+| 2026-03-09 | MCP transport is Streamable HTTP (single POST /mcp), not legacy SSE | Kong route: single `/plaudelm/mcp` route with GET/POST/DELETE; strip_path:true → upstream receives POST /; `Accept: application/json, text/event-stream` required |
 | 2026-03-07 | MCP client.callTool() returns {isError:true, content:[...]} for tool errors, does NOT throw | tool-level McpError goes through MCP protocol as error result; use result.isError not rejects.toThrow() in integration/e2e tests |
 | 2026-03-07 | e2e tests live in tests/e2e/ but compile via mcp/jest.config.cjs e2e project | roots: ['<rootDir>/../tests/e2e'] in jest project config; tsconfig.test.json include extended with ../tests/e2e/**/* |
 | 2026-03-07 | Neo4j driver connection pool keeps Jest alive after tests — use --forceExit | Added to test:integration, test:e2e, test:all npm scripts; not a test failure |
 | 2026-03-07 | search_concepts requires conceptNameIndex full-text index in Neo4j | Run scripts/init-neo4j.py before integration tests; integration tests warn and skip gracefully if index missing |
+| 2026-03-08 | query/venv required for local pytest | No system-level pytest; create venv + install requirements.txt + requirements-dev.txt before running pytest on host |
+| 2026-03-08 | Kong MCP route requires two entries with strip_path:true | MCP SSE protocol uses GET /sse + POST /messages; a single prefix route with strip_path:false forwards the full Kong path to upstream — MCP server returns 404; must use two routes each with strip_path:true so upstream receives /sse and /messages |
+| 2026-03-08 | deck validate must precede POST /config apply | validate is a syntax check that runs without a live Kong instance; running apply first defeats the safety check; workflow: edit → validate → apply → diff |
+| 2026-03-08 | http-log plugin requires a live HTTP endpoint at config-apply time | Kong rejects kong.yaml if http_endpoint is unreachable; for local dev: use go-httpbin (mccutchen/go-httpbin) as log sink or substitute file-log to /dev/stdout |
+| 2026-03-08 | Global rename: notebooklm → plaudelm | All container names, volumes, network, Kong routes, Neo4j constraints, n8n webhook, package name, server name updated across 28 files |
+| 2026-03-08 | plaudelm-network explicit Docker network | Named bridge network added to docker-compose.yml; all 7 services use it; name stable regardless of compose invocation directory |
+| 2026-03-08 | MCP server does not need OLLAMA_BASE_URL or KONG_PROXY_URL | MCP server only calls FastAPI, Qdrant, Neo4j, n8n — never Ollama or Kong directly; removed from config.ts |
+| 2026-03-08 | mcp/.dockerignore must NOT exclude tsconfig.json | Builder stage runs npm run build which requires tsconfig.json; excluding it breaks the Docker build |
+| 2026-03-08 | MCP_TRANSPORT=stdio in .env causes container to exit cleanly | stdio mode exits when stdin closes; container must have MCP_TRANSPORT=sse in .env for Docker |
+| 2026-03-08 | n8n healthcheck uses wget not curl | curl not available in n8n image; healthcheck must use wget -qO- |
+| 2026-03-08 | Konnect data plane: ai-proxy-advanced has no native ollama provider | Use provider: llama2 + llama2_format: ollama + upstream_url for Ollama; service host URL is a placeholder (never called) |
+| 2026-03-08 | ai-mcp-proxy mode for existing MCP server is passthrough-listener | passthrough-listener proxies all MCP traffic to upstream; conversion-listener is for wrapping HTTP APIs as MCP tools |
+| 2026-03-08 | Kong AI RAG Injector not suitable for plaudeLM | Supports only Redis/pgvector (not Qdrant) and cloud embedding providers (not Ollama); GraphRAG hybrid logic stays in FastAPI |
+| 2026-03-08 | All Claude clients route through Kong SSE — no stdio bypass | Desktop, Code, claude.ai, Cowork all connect to http://localhost:8000/plaudelm/mcp/sse with apikey header |
+| 2026-03-08 | api-gw.env and kong/api-gateway/cert/ added to .gitignore | Contain Konnect credentials and cluster cert — must never be committed |
+| 2026-03-08 | Konnect data plane cert PEM footer truncation | tls.crt had -----END CERTIFICATE---- (4 dashes, not 5); Kong fails to parse; fix with sed or text editor |
+| 2026-03-08 | MCP transport upgraded from SSE to Streamable HTTP | SSEServerTransport is legacy/deprecated; StreamableHTTPServerTransport is the current MCP standard; single POST endpoint replaces GET /sse + POST /messages; Claude clients default to Streamable HTTP |
+| 2026-03-08 | ai-mcp-proxy config: server.timeout and server.forward_client_headers are nested | Not top-level fields; timeout default is 10000ms (too short for Ollama); set server.timeout: 120000 |
+| 2026-03-08 | Kong route strip_path:true with /plaudelm/mcp → upstream receives POST / | Server must handle path === "/" as MCP endpoint; also handles "/mcp" for direct access |
+| 2026-03-08 | Kong consumer has credential type, not plugin | key-auth plugin goes on the service; consumer only gets a key-auth credential (the API key value) |
+| 2026-03-08 | Streamable HTTP server uses Transport cast | exactOptionalPropertyTypes:true makes StreamableHTTPServerTransport incompatible with Transport interface at onclose; fix with `transport as Transport` (not as unknown as) |
+| 2026-03-08 | Ollama removed — replaced with Azure OpenAI via Kong | llama3.2 CPU too slow; switched to gpt-4o-mini (chat) + text-embedding-3-large (embeddings); Ollama removed from docker-compose.yml entirely |
+| 2026-03-08 | Qdrant collections recreated at 3072 dimensions | text-embedding-3-large outputs 3072-dim; old 768-dim collections (nomic-embed-text) deleted and recreated |
+| 2026-03-08 | n8n workflow must NOT send model field to Kong | ai-proxy-advanced controls the model; sending model in request body triggers "cannot use own model" validation error; removed from all Code nodes |
+| 2026-03-09 | n8n workflow must NOT send options field to Azure OpenAI via Kong | options: {temperature} is Ollama syntax; Azure OpenAI rejects it with 400 "Unrecognized request argument: options"; use top-level temperature or omit (let Kong default); silent catch in Extract Graph Entities swallowed this error causing 0 concepts in Neo4j |
+| 2026-03-08 | ai-proxy-advanced embeddings use targets not embeddings config | top-level embeddings config is for RAG vector lookups; proxying embed requests requires targets array with route_type: llm/v1/embeddings |
+| 2026-03-08 | Kong ai-proxy-advanced no addresses = empty targets array | round-robin balancer needs at least one target; configure Azure endpoint in targets not embeddings section |
+| 2026-03-09 | setup-n8n.sh upsert pattern: GET by name → PATCH if exists, POST if not → PATCH active | POST /rest/workflows always creates a new ID regardless; must check by name first and use PATCH /rest/workflows/{id} with full workflow JSON to update in-place (PUT returns 404 on /rest/). Public API PUT /api/v1/workflows/{id} exists but requires X-N8N-API-KEY not in this project. |
+| 2026-03-09 | init scripts are required stack prerequisites, not optional | init-neo4j.py creates conceptNameIndex fulltext index; without it search_concepts fails at runtime; init-qdrant.py creates collections; must run both after fresh volume creation |
+| 2026-03-09 | catch blocks must surface original error message verbatim | generic "X unavailable" messages hide root cause; pattern: `const msg = err instanceof Error ? err.message : String(err); throw new McpError(..., \`context: ${msg}\`)` |
+| 2026-03-09 | MCP SDK Server is single-connection per instance | createServer() must be called per initialize request in Streamable HTTP mode, not once at startup; second connect() call on same instance throws "Already connected to a transport" |
+| 2026-03-09 | Streamable HTTP requires Accept: application/json, text/event-stream | SDK returns 406 Not Acceptable without this header; all MCP clients (Insomnia, curl, Claude) must send it |
+| 2026-03-09 | Neo4j JS driver sends JS number as float64 — LIMIT/SKIP require neo4j.int() | JS number type is always float; Neo4j rejects 10.0 in LIMIT clause; wrap all integer Cypher params with neo4j.int(value) from neo4j-driver |
 
 ---
 
 ## Known Issues / Watch Out For
+
+- **CRITICAL: init scripts must be run before the stack is usable** — `scripts/init-neo4j.py` creates the `conceptNameIndex` fulltext index that `search_concepts` requires. If it hasn't been run, every `search_concepts` call fails. Same for `init-qdrant.py` (collections). Run both after every fresh Neo4j/Qdrant volume creation. See CONSTITUTION.md IV-B.3.
+- **CRITICAL: never swallow exceptions with a generic message** — catch blocks must include `err.message` in the thrown error. Generic "X unavailable" messages hide root cause and force guessing. See CONSTITUTION.md IV-B.2.
+- **CRITICAL: look up official docs before touching any component** — do not assume API shapes, index names, default behaviors, or query syntax. Fetch current docs for Neo4j, Qdrant, Kong, n8n, MCP SDK before writing or debugging code that touches them. See CONSTITUTION.md IV-B.1.
+- **MCP server creates one Server instance per session (not shared)** — `createServer()` + `registerTools()` must be called inside the `isInitializeRequest` branch, not once at startup. The MCP SDK Server only supports one active connection per instance. Fixed in index.ts on 2026-03-09.
+
+
+
+- **Azure OpenAI deployment name must match exactly** — `deployment_id` in Konnect ai-proxy-advanced plugin is case-sensitive; copy verbatim from Azure OpenAI Studio → Deployments.
+- **n8n workflow re-import required after any Code node change** — edit the JSON, delete old workflow via REST API, import new, activate. Use setup-n8n.sh pattern or do manually via API.
+- **CRITICAL: Any credentials created via one-off curl/API calls MUST be saved to .env.example immediately** — n8n owner password was lost because it was only sent as a curl and never persisted. Use `scripts/setup-n8n.sh` which reads from .env. Never create credentials interactively without saving them.
 
 - **n8n import creates duplicates** — `n8n import:workflow` always creates a new workflow (new ID). After each import, activate new, deactivate + delete old via REST API.
 - **Qdrant client version mismatch** — host has qdrant-client 1.17.0 but server is 1.13.5. Tests pass; suppress with `check_compatibility=False` if needed. Pin to ~1.13.0 in venv.
@@ -211,33 +255,99 @@ Nothing in progress.
 - **Google Drive ingest** — requires Google OAuth 2.0 app. Set up at console.cloud.google.com; credentials in `.env` and n8n Credentials UI.
 - **PDF ingest via n8n** — requires multipart/form-data (binary), not JSON. Document in MCP `ingest_document` error messages.
 - **MCP transport switching** — when `MCP_TRANSPORT=sse`, stdio handler must not be initialized. Validate at startup in `config.ts`.
-- **Kong MCP Gateway** — `ai-mcp-proxy` plugin config needs to match the MCP server's SSE endpoint path exactly. Test with `deck diff` before `deck sync`.
-- **mcp/ exists** — Spec #4 + Spec #6 complete. `npm test` runs 72 tests; `npm run test:all` runs 94 tests (13 integration + 9 e2e skip gracefully when services unavailable).
-- **tests/e2e/ exists** — 3 e2e test files (kong, personal, music); skip gracefully when full stack unavailable.
-- **docker-compose.yml missing notebooklm-mcp service** — deferred to Spec #5.
-- **audio_overview FastAPI `/audio-overview` endpoint not implemented** — Spec #7. The MCP tool exists and delegates to FastAPI; the FastAPI side is not yet built.
+- **Kong MCP route is a single entry** — Streamable HTTP uses one route `/plaudelm/mcp` (GET/POST/DELETE, strip_path:true); legacy SSE two-route pattern (GET /sse + POST /messages) is obsolete.
+- **Kong RAG Injector not usable** — only supports Redis/pgvector and cloud embedding providers; not compatible with Qdrant + Azure OpenAI via Kong.
+- **`docker compose kill` suppresses restart** — to test `restart: unless-stopped`, kill PID 1 inside the container: `docker exec plaudelm-mcp kill -9 1`.
+- **plaudelm-mcp running in SSE mode** — MCP_TRANSPORT=sse in .env; all clients connect via Kong. For local stdio debugging: `MCP_TRANSPORT=stdio node dist/index.js` outside Docker.
+- **audio_overview FastAPI `/audio-overview` endpoint not implemented** — Spec #7. The MCP tool exists and delegates to FastAPI; the FastAPI side is not yet built. Returns 404 from query service — expected.
+- **search_concepts uses Lucene fulltext tokenization** — query on individual words only. "rate limiting" or "rate" works; "ratelimiting" (concatenated) returns 0 results. Index tokenizes on whitespace and hyphens.
+- **query/venv** — must be created locally before running pytest: `python3 -m venv venv && ./venv/bin/pip install -r requirements.txt -r requirements-dev.txt`
+- **Stale branches cleaned** — deleted: feat/1-neo4j-infrastructure, feat/3-n8n-graph-extraction, feat/5-query-service, feat/7-mcp-server, spec/1-neo4j-infrastructure (all fully merged to dev)
 
 ---
 
 ## Session Notes
 
-### 2026-03-08 — Spec #5 spec written
-- Branch `002-kong-mcp-gateway` created; `specs/002-kong-mcp-gateway/spec.md` written
-- 3 user stories (P1: Kong route, P2: key-auth, P3: Docker Compose service)
-- 11 FRs, 6 SCs, 0 NEEDS CLARIFICATION markers; checklist all-green
-- Committed Spec #6 integration + e2e tests on `001-mcp-server` (c81e0f5)
-- PR for `001-mcp-server` → dev pending
+### 2026-03-09 — Spec #5 Kong MCP Gateway closed
+- deck dump → `kong/api-gateway/deck/kong.yaml`; IaC confirmed (plaudelm-mcp, plaudelm-chat, plaudelm-embed services)
+- All docs updated: admin API / DB-less references replaced with Konnect deck sync throughout CLAUDE.md, ARCHITECTURE.md, spec.md, tasks.md
+- `mcp/tests/integration/tools/kong-mcp.test.ts` — 5/5 green (Streamable HTTP transport, not legacy SSE)
+- T4-1/T4-4 (auth rejection) ✅; T4-2 (session init) ✅; T4-3 (live list_notebooks via Kong at 134ms) ✅; T4-5 (Kong proxy headers) ✅
+- Cold-start verified; crash-restart verified (PID kill); `docker compose kill` does NOT trigger restart
+- T013 (deck validate) + T014 (deck sync) done by Paul
+- quickstart.md created; MEMORY.md closed out; all 21 tasks done or marked N/A
 
-### 2026-03-07 — Spec #6 Full Test Suite (integration + e2e)
-- Ran speckit.analyze on 001-mcp-server artifacts — 2 CRITICAL findings: (C1) e2e deferred, (C2) T016/T016a ordering; both now resolved
-- Wrote 5 MCP integration test files (mcp/tests/integration/tools/) using InMemoryTransport + real services
-- Wrote 3 e2e test files (tests/e2e/) testing full ingest → query → citation pipeline
-- Critical discovery: MCP client.callTool() returns {isError:true} for tool errors, does NOT reject; updated all error-path assertions accordingly
-- Extended mcp/jest.config.cjs with e2e project (roots: ../tests/e2e); extended tsconfig.test.json include
-- Added --forceExit to integration/e2e/test:all scripts (Neo4j driver pool keeps Jest alive)
-- Neo4j IS running locally; Qdrant IS running; FastAPI is NOT running → integration tests skip gracefully
-- Final: 94/94 tests green across 4 projects; beads plaudeLM-732 CLOSED
-- Changes NOT yet committed — needs commit before PR
+### 2026-03-09 — End-to-end ingest + MCP tool debug session
+- Fixed n8n respondToWebhook double-encoding (JSON.stringify → object literal)
+- Fixed Extract Graph Entities: `options:{temperature}` is Ollama syntax, Azure returns 400, catch swallowed it → 0 concepts; removed options field
+- Fixed ingest.ts swallowed catch (CONSTITUTION IV-B.2); shape-mismatch error now shows actual response
+- Fixed setup-n8n.sh: PATCH upsert (PUT returns 404 on /rest/); deduplication added (find all matches, patch first, delete rest)
+- Added CONSTITUTION IV.5: docker builds must always use --no-cache
+- Confirmed working tools: ingest_document ✅, search_concepts ✅, get_document_graph ✅, list_notebooks ✅, query ✅
+- audio_overview: not implemented (Spec #7, FastAPI side missing — expected 404)
+- search_concepts uses Lucene tokenization — query must be individual words not concatenated (e.g. "rate" not "ratelimiting")
+- 73/73 MCP tests green + 30/30 query unit tests green; committed 8a68be5
+
+### 2026-03-08 — Spec #5 Azure migration + ingest pipeline debug session
+- Replaced Ollama with Azure OpenAI: gpt-4o-mini (chat) + text-embedding-3-large (embeddings)
+- Removed ollama service + depends_on from docker-compose.yml entirely
+- Upgraded MCP transport: SSEServerTransport → StreamableHTTPServerTransport (single POST /mcp endpoint)
+- Fixed ingest_document tool: was calling FastAPI /ingest (doesn't exist) → now calls n8n webhook directly
+- Fixed n8n workflow: removed hardcoded model names from all Code nodes (Kong controls model)
+- Qdrant collections recreated: 768-dim → 3072-dim (text-embedding-3-large)
+- ai-proxy-advanced embed config: moved from embeddings section → targets with route_type: llm/v1/embeddings
+- scripts/setup-n8n.sh written: idempotent owner setup + workflow import + activation from .env
+- Added N8N_OWNER_EMAIL/FIRSTNAME/LASTNAME/PASSWORD and KONG_MCP_API_KEY to .env.example
+- Kong route: strip_path:true, single POST/GET/DELETE /plaudelm/mcp route
+- n8n workflow re-imported with updated Code nodes (workflow ID: EBnvjaTW2hLDCarr)
+- Status at session end: ingest_document pending final test with Azure models
+
+### 2026-03-08 — Spec #5 stack bring-up + global rename session
+- Global rename notebooklm → plaudelm across 28 files (container names, volumes, network, routes, constraints, package name, docs)
+- docker-compose.yml: added plaudelm-network, fixed n8n healthcheck (wget), fixed MCP env vars
+- mcp/src/config.ts: removed OLLAMA_BASE_URL + KONG_PROXY_URL (MCP server never calls those directly)
+- mcp/.dockerignore: removed tsconfig.json exclusion (broke Docker build)
+- .gitignore: added api-gw.env + kong/api-gateway/cert/ to prevent secret commits
+- Stack fully running: kong ✅, query ✅, plaudelm-mcp ✅, n8n ✅, neo4j ✅, qdrant ✅, ollama ✅
+- Root causes fixed: MCP_TRANSPORT=stdio in .env (exit 0), QUERY_SERVICE_URL wrong port (8080→8000), n8n no curl, Kong cert missing trailing dash
+- Konnect architecture confirmed: cloud control plane + local Docker data plane on plaudelm-network
+- ai-proxy-advanced: no native ollama provider — use llama2 + llama2_format:ollama + upstream_url
+- ai-mcp-proxy mode: passthrough-listener for proxying to existing MCP server
+- Kong AI RAG Injector evaluated: not suitable (no Qdrant, no Ollama embeddings)
+- All clients (Desktop, Code, claude.ai, Cowork) will connect via Kong SSE — no stdio bypass
+- docs/kong-config-reference.md created — full Konnect config reference
+- Spec #8 (Cowork Integration) added to backlog with folder convention + task templates
+- Tests: 72/72 MCP unit+contract ✅; 30/30 query unit ✅
+- Commit: 5d527f6 on 002-kong-mcp-gateway; pushed to origin
+- Next: Paul completes Konnect config → dump kong.yaml → decide embed route → T004 integration tests
+
+### 2026-03-08 — Spec #5 tasks.md + speckit.analyze remediation session
+- Merged PR #8 (001-mcp-server → dev): Specs #4 + #6 complete, 94/94 tests on dev
+- Cleaned stale branches: deleted local `001-mcp-server`, remote `origin/001-mcp-server`, `origin/spec/1-neo4j-infrastructure`
+- Generated `specs/002-kong-mcp-gateway/tasks.md` — 21 tasks across 6 phases
+- Ran speckit.analyze: 8 findings (0 critical, 3 high, 3 medium, 2 low)
+- Remediated all 5 actionable issues:
+  - F1: Added T006 (ai-mcp-proxy availability check) + T010 (conditional add)
+  - I1: Fixed FR-010 in spec.md — deck sync → POST /config
+  - I2: Fixed T008 — single-route/strip_path:false → two explicit routes with strip_path:true
+  - B1: Resolved http-log placeholder — T009 gives concrete options (go-httpbin or file-log)
+  - A1: Swapped T013/T014 — deck validate before POST /config apply
+- Test runs: 72/72 MCP unit+contract ✅; 30/30 query unit ✅
+- Committed: `spec(005): generate tasks.md + fix spec.md FR-010` (b0963ee)
+- Next: implement T001–T021 in order on 002-kong-mcp-gateway
+
+### 2026-03-08 — Spec #5 spec/plan + stack prep session
+- Ran speckit.analyze on 001-mcp-server: 10 findings, no blockers, all artifact-level (not implementation)
+- Committed Spec #6 integration + e2e tests on 001-mcp-server (c81e0f5); opened PR #8
+- Cleaned up 5 stale local branches + 3 remote branches (all fully merged to dev)
+- Created 002-kong-mcp-gateway branch; wrote spec.md, plan.md, research.md
+- Key discovery: kong/ directory was empty — kong.yaml was never created; must create before Kong starts
+- Key discovery: query and kong both had 8000:8000 host port binding — fixed in docker-compose (query → 8081:8000)
+- Uncommented plaudelm-mcp service in docker-compose.yml (SSE mode, depends_on query)
+- User decision: defer ai-mcp-proxy plugin; get core stack working first
+- Test runs: 72/72 MCP unit+contract ✅; 30/30 query unit ✅; 29/29 query integration ✅
+- Session ended before `docker compose up` — that's next session's starting point
+- NOT merged: 002 branch not pushed yet; PR #8 not yet merged
 
 ### 2026-03-07 — Spec #4 MCP Server implementation
 - Full speckit workflow (specify → plan → tasks → analyze → implement) run for first time

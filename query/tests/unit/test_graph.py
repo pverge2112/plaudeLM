@@ -16,7 +16,7 @@ from graph import GraphResult, GraphRetriever, hop_score
 
 class TestExtractConcepts:
     async def test_extract_concepts_posts_to_kong_chat_endpoint(self) -> None:
-        """extract_concepts POSTs to /notebooklm/chat with a concept-extraction prompt."""
+        """extract_concepts POSTs to /plaudelm/chat with a concept-extraction prompt."""
         mock_response = MagicMock()
         mock_response.raise_for_status = MagicMock()
         mock_response.json.return_value = {
@@ -38,7 +38,7 @@ class TestExtractConcepts:
             concepts = await retriever.extract_concepts("What is GraphRAG?")
 
         call_args = mock_client.post.call_args
-        assert call_args[0][0] == "http://kong:8000/notebooklm/chat"
+        assert call_args[0][0] == "http://kong:8000/plaudelm/chat"
         # Implementation normalizes concepts to lowercase
         assert "graphrag" in concepts
         assert "neo4j" in concepts

@@ -8,7 +8,7 @@ Verifies that ingesting a markdown document via the n8n webhook results in:
   - Qdrant payload neo4j_chunk_id matching the Neo4j Chunk.id
   - Idempotent ingest (no duplicate nodes on second run)
 
-Requires running stack: Neo4j, Qdrant, n8n, Kong (with /notebooklm/chat route).
+Requires running stack: Neo4j, Qdrant, n8n, Kong (with /plaudelm/chat route).
 Run with: pytest tests/integration/test_graph_extraction.py -m integration
 
 Environment variables required:

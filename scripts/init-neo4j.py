@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-init-neo4j.py — Initialize Neo4j constraints and indexes for Personal NotebookLM.
+init-neo4j.py — Initialize Neo4j constraints and indexes for plaudeLM.
 
 Creates all constraints and indexes defined in ARCHITECTURE.md.
 Safe to re-run — uses IF NOT EXISTS syntax throughout (idempotent).
@@ -40,41 +40,41 @@ def _require_env(name: str) -> str:
 
 CONSTRAINTS: list[tuple[str, str]] = [
     (
-        "notebooklm_concept_name_unique",
-        "CREATE CONSTRAINT notebooklm_concept_name_unique IF NOT EXISTS "
+        "plaudelm_concept_name_unique",
+        "CREATE CONSTRAINT plaudelm_concept_name_unique IF NOT EXISTS "
         "FOR (c:Concept) REQUIRE c.name IS UNIQUE",
     ),
     (
-        "notebooklm_document_id_unique",
-        "CREATE CONSTRAINT notebooklm_document_id_unique IF NOT EXISTS "
+        "plaudelm_document_id_unique",
+        "CREATE CONSTRAINT plaudelm_document_id_unique IF NOT EXISTS "
         "FOR (d:Document) REQUIRE d.id IS UNIQUE",
     ),
     (
-        "notebooklm_chunk_id_unique",
-        "CREATE CONSTRAINT notebooklm_chunk_id_unique IF NOT EXISTS "
+        "plaudelm_chunk_id_unique",
+        "CREATE CONSTRAINT plaudelm_chunk_id_unique IF NOT EXISTS "
         "FOR (ch:Chunk) REQUIRE ch.id IS UNIQUE",
     ),
     (
-        "notebooklm_event_name_unique",
-        "CREATE CONSTRAINT notebooklm_event_name_unique IF NOT EXISTS "
+        "plaudelm_event_name_unique",
+        "CREATE CONSTRAINT plaudelm_event_name_unique IF NOT EXISTS "
         "FOR (e:Event) REQUIRE e.name IS UNIQUE",
     ),
 ]
 
 INDEXES: list[tuple[str, str]] = [
     (
-        "notebooklm_chunk_notebook_idx",
-        "CREATE INDEX notebooklm_chunk_notebook_idx IF NOT EXISTS "
+        "plaudelm_chunk_notebook_idx",
+        "CREATE INDEX plaudelm_chunk_notebook_idx IF NOT EXISTS "
         "FOR (ch:Chunk) ON (ch.notebook)",
     ),
     (
-        "notebooklm_concept_notebooks_idx",
-        "CREATE INDEX notebooklm_concept_notebooks_idx IF NOT EXISTS "
+        "plaudelm_concept_notebooks_idx",
+        "CREATE INDEX plaudelm_concept_notebooks_idx IF NOT EXISTS "
         "FOR (c:Concept) ON (c.notebooks)",
     ),
     (
-        "notebooklm_document_notebook_idx",
-        "CREATE INDEX notebooklm_document_notebook_idx IF NOT EXISTS "
+        "plaudelm_document_notebook_idx",
+        "CREATE INDEX plaudelm_document_notebook_idx IF NOT EXISTS "
         "FOR (d:Document) ON (d.notebook)",
     ),
 ]
@@ -115,11 +115,11 @@ def verify(driver: Driver) -> None:
     """Print a summary of constraints and indexes for confirmation."""
     with driver.session() as session:
         constraints = session.run(
-            "SHOW CONSTRAINTS YIELD name WHERE name STARTS WITH 'notebooklm_' RETURN name"
+            "SHOW CONSTRAINTS YIELD name WHERE name STARTS WITH 'plaudelm_' RETURN name"
         ).data()
         indexes = session.run(
             "SHOW INDEXES YIELD name, type "
-            "WHERE name STARTS WITH 'notebooklm_' OR name = 'conceptNameIndex' "
+            "WHERE name STARTS WITH 'plaudelm_' OR name = 'conceptNameIndex' "
             "RETURN name, type"
         ).data()
 

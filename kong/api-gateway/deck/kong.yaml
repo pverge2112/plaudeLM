@@ -1,0 +1,157 @@
+_format_version: "3.0"
+_info:
+  defaults: {}
+  select_tags:
+  - plaudelm
+_konnect:
+  control_plane_name: plaudelm
+consumers:
+- keyauth_credentials:
+  - key: 9f8559e150ce8d79f5f5863ee113b9af280efdb7abee73eb69ed09a79a57d1fa
+    tags:
+    - plaudelm
+  tags:
+  - plaudelm
+  username: paul
+services:
+- connect_timeout: 120000
+  host: localhost
+  name: plaudelm-chat
+  port: 1
+  read_timeout: 120000
+  routes:
+  - methods:
+    - POST
+    name: plaudelm-chat-route
+    paths:
+    - /plaudelm/chat
+    tags:
+    - plaudelm
+  tags:
+  - plaudelm
+  write_timeout: 120000
+- host: localhost
+  name: plaudelm-embed
+  port: 1
+  routes:
+  - methods:
+    - POST
+    name: plaudelm-embed-route
+    paths:
+    - /plaudelm/embed
+    plugins:
+    - config:
+        genai_category: text/embeddings
+        targets:
+        - auth:
+            allow_override: false
+            aws_access_key_id: null
+            aws_secret_access_key: null
+            azure_client_id: null
+            azure_client_secret: null
+            azure_tenant_id: null
+            azure_use_managed_identity: false
+            gcp_service_account_json: null
+            gcp_use_service_account: false
+            header_name: api-key
+            header_value: '{vault://ai/azure-key}'
+            param_location: null
+            param_name: null
+            param_value: null
+          description: null
+          logging:
+            log_payloads: true
+            log_statistics: true
+          metadata: null
+          model:
+            name: text-embedding-3-large
+            options:
+              anthropic_version: null
+              azure_api_version: "2023-05-15"
+              azure_deployment_id: text-embedding-3-large
+              azure_instance: se-openai-models
+              bedrock:
+                aws_assume_role_arn: null
+                aws_region: null
+                aws_role_session_name: null
+                aws_sts_endpoint_url: null
+                embeddings_normalize: false
+                performance_config_latency: null
+                video_output_s3_uri: null
+              cohere:
+                embedding_input_type: classification
+                wait_for_model: null
+              dashscope:
+                international: true
+              embeddings_dimensions: null
+              gemini:
+                api_endpoint: null
+                endpoint_id: null
+                location_id: null
+                project_id: null
+              huggingface:
+                use_cache: null
+                wait_for_model: null
+              input_cost: null
+              llama2_format: null
+              max_tokens: null
+              mistral_format: null
+              output_cost: null
+              temperature: null
+              top_k: null
+              top_p: null
+              upstream_path: null
+              upstream_url: null
+            provider: azure
+          route_type: llm/v1/embeddings
+          weight: 100
+      enabled: true
+      instance_name: ai-proxy-advanced-embed
+      name: ai-proxy-advanced
+      tags:
+      - plaudelm
+    tags:
+    - plaudelm
+  tags:
+  - plaudelm
+- host: plaudelm-mcp
+  name: plaudelm-mcp
+  plugins:
+  - config:
+      logging:
+        log_audits: true
+        log_statistics: true
+      mode: passthrough-listener
+      server:
+        tag: plaudelm
+        timeout: 120000
+    enabled: true
+    instance_name: ai-mcp-proxy
+    name: ai-mcp-proxy
+    tags:
+    - plaudelm
+  - enabled: true
+    instance_name: key-auth
+    name: key-auth
+    tags:
+    - plaudelm
+  port: 3000
+  routes:
+  - methods:
+    - GET
+    - POST
+    - DELETE
+    name: plaudelm-mcp
+    paths:
+    - /plaudelm/mcp
+    tags:
+    - plaudelm
+  tags:
+  - plaudelm
+vaults:
+- config:
+    config_store_id: 315705ce-a21b-45ad-8d33-de19965dd194
+  name: konnect
+  prefix: ai
+  tags:
+  - plaudelm

@@ -20,7 +20,7 @@ Additionally, Qdrant point IDs are currently string composite IDs (not UUIDs), w
 Add a **graph extraction node** to the n8n ingest pipeline, executing after the summarization step and before the Qdrant upsert:
 
 1. **Fix chunk IDs** — generate UUID per chunk via `crypto.randomUUID()` in n8n Code node. UUID becomes both Qdrant point ID and Neo4j `Chunk.id`.
-2. **Extract graph entities** — call `POST /notebooklm/chat` (Kong → llama3.2) with a structured prompt returning `{ concepts[], relationships[], events[] }` JSON.
+2. **Extract graph entities** — call `POST /plaudelm/chat` (Kong → llama3.2) with a structured prompt returning `{ concepts[], relationships[], events[] }` JSON.
 3. **Validate JSON** — parse + validate in n8n Code node; retry once on malformed JSON; fall back to empty arrays (log warning, do not fail ingest).
 4. **Write to Neo4j** via n8n HTTP node:
    - `MERGE (:Document {id, title, source_type, source_url, notebook, ingested_at})`
@@ -74,4 +74,4 @@ Add a **graph extraction node** to the n8n ingest pipeline, executing after the 
 
 - SPEC-001 (Neo4j Infrastructure) — constraints, indexes, Qdrant collections ✅
 - n8n running in docker-compose ✅
-- Kong route `/notebooklm/chat` routing to Ollama llama3.2 ✅
+- Kong route `/plaudelm/chat` routing to Ollama llama3.2 ✅

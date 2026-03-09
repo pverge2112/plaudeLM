@@ -1,146 +1,124 @@
 /**
- * Integration tests for the `query` tool against a real FastAPI query service.
- * @integration
+ * Integration tests for query tool — FastAPI schema contract. @integration
  *
- * Requires running services:
- *   FastAPI query service (TEST_QUERY_SERVICE_URL, default http://localhost:8000)
- *   Qdrant (TEST_QDRANT_URL, default http://localhost:6333)
- *   Neo4j (TEST_NEO4J_URI, default bolt://localhost:7687)
+ * Calls the real FastAPI /query endpoint and validates that the response
+ * matches the Zod schema defined in mcp/src/tools/query.ts.
  *
- * Run: cd mcp && npm run test:integration
+ * This test exists to prevent schema drift between the FastAPI Pydantic models
+ * and the MCP Zod schemas — the exact class of bug that caused the empty-response
+ * regression on 2026-03-09 (document_title vs title mismatch).
+ *
+ * Skips gracefully if QUERY_SERVICE_URL is not reachable.
  */
 
-import { describe, it, expect, beforeAll, afterAll, jest } from '@jest/globals';
+import { describe, it, expect, beforeAll } from '@jest/globals';
+import { z } from 'zod';
 
-// Set env vars BEFORE any src imports that load config.ts
-process.env['OLLAMA_BASE_URL'] = process.env['TEST_OLLAMA_BASE_URL'] ?? 'http://localhost:11434';
-process.env['QDRANT_URL'] = process.env['TEST_QDRANT_URL'] ?? 'http://localhost:6333';
-process.env['NEO4J_URI'] = process.env['TEST_NEO4J_URI'] ?? 'bolt://localhost:7687';
-process.env['NEO4J_USER'] = process.env['TEST_NEO4J_USER'] ?? 'neo4j';
-process.env['NEO4J_PASSWORD'] = process.env['TEST_NEO4J_PASSWORD'] ?? 'changeme';
-process.env['KONG_PROXY_URL'] = process.env['TEST_KONG_PROXY_URL'] ?? 'http://localhost:8000';
-process.env['MCP_TRANSPORT'] = 'stdio';
-process.env['MCP_PORT'] = '3000';
-process.env['QUERY_SERVICE_URL'] = process.env['TEST_QUERY_SERVICE_URL'] ?? 'http://localhost:8000';
-process.env['N8N_WEBHOOK_URL'] = process.env['TEST_N8N_WEBHOOK_URL'] ?? 'http://localhost:5678/webhook';
+const QUERY_SERVICE_URL = process.env.QUERY_SERVICE_URL ?? 'http://localhost:8000';
 
-async function isServiceReachable(url: string): Promise<boolean> {
-  try {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 2000);
-    try {
-      const res = await fetch(`${url}/health`, { signal: controller.signal });
-      return res.ok;
-    } finally {
-      clearTimeout(id);
-    }
-  } catch {
-    return false;
-  }
-}
+// These schemas must stay in sync with mcp/src/tools/query.ts
+const CitationSchema = z.object({
+  chunk_id: z.string(),
+  neo4j_chunk_id: z.string(),
+  chunk_text: z.string(),
+  title: z.string(),
+  score: z.number().min(0),
+  source_url: z.string().url().nullish(),
+});
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let client: any;
+const QueryOutputSchema = z.object({
+  answer: z.string(),
+  citations: z.array(CitationSchema),
+  concepts_used: z.array(z.string()),
+});
+
 let serviceAvailable = false;
 
-describe('query tool @integration', () => {
-  beforeAll(async () => {
-    const queryUrl = process.env['QUERY_SERVICE_URL']!;
-    serviceAvailable = await isServiceReachable(queryUrl);
+beforeAll(async () => {
+  try {
+    const res = await fetch(`${QUERY_SERVICE_URL}/health`, {
+      signal: AbortSignal.timeout(3000),
+    });
+    serviceAvailable = res.ok;
+  } catch {
+    serviceAvailable = false;
+  }
+});
+
+describe('query tool @integration — FastAPI /query schema contract', () => {
+  it('FastAPI /query response shape matches MCP CitationSchema', async () => {
     if (!serviceAvailable) {
-      console.warn(`⚠ FastAPI not reachable at ${queryUrl} — integration tests will be skipped`);
+      console.warn(`Skipping: FastAPI not reachable at ${QUERY_SERVICE_URL}`);
       return;
     }
 
-    jest.resetModules();
-    const { createServer, registerTools } = await import('../../../src/server.js');
-    const { InMemoryTransport } = await import('@modelcontextprotocol/sdk/inMemory.js');
-    const { Client: McpClient } = await import('@modelcontextprotocol/sdk/client/index.js');
-
-    const server = createServer();
-    await registerTools(server);
-
-    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-    await server.connect(serverTransport);
-
-    client = new McpClient({ name: 'integration-test-query', version: '1.0.0' });
-    await client.connect(clientTransport);
-  });
-
-  afterAll(async () => {
-    await client?.close();
-  });
-
-  it('returns answer, citations, and concepts_used shape from real FastAPI', async () => {
-    if (!serviceAvailable) return;
-
-    const result = await client.callTool({
-      name: 'query',
-      arguments: {
-        question: 'xyzzy quux frob nonce guaranteed-no-match-integration-test',
-        notebook: 'personal',
-        top_k: 3,
-      },
+    const res = await fetch(`${QUERY_SERVICE_URL}/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: 'What is Kong AI Gateway?', notebook: 'kong', top_k: 3 }),
+      signal: AbortSignal.timeout(60000),
     });
 
-    expect(result.isError).toBeFalsy();
-    const content = result.content[0] as { type: string; text: string };
-    expect(content.type).toBe('text');
+    expect(res.ok).toBe(true);
+    const body = await res.json();
+    const result = QueryOutputSchema.safeParse(body);
 
-    const parsed = JSON.parse(content.text) as Record<string, unknown>;
-    expect(parsed).toHaveProperty('answer');
-    expect(parsed).toHaveProperty('citations');
-    expect(parsed).toHaveProperty('concepts_used');
-    expect(typeof parsed['answer']).toBe('string');
-    expect(Array.isArray(parsed['citations'])).toBe(true);
-    expect(Array.isArray(parsed['concepts_used'])).toBe(true);
+    if (!result.success) {
+      throw new Error(
+        `FastAPI /query response does not match MCP QueryOutputSchema.\n` +
+          `Schema errors:\n${JSON.stringify(result.error.errors, null, 2)}\n\n` +
+          `Actual response:\n${JSON.stringify(body, null, 2)}`,
+      );
+    }
+
+    expect(result.success).toBe(true);
   });
 
-  it('returns empty citations array gracefully when query matches no content', async () => {
-    if (!serviceAvailable) return;
+  it('FastAPI /query returns valid structure when no chunks match', async () => {
+    if (!serviceAvailable) {
+      console.warn(`Skipping: FastAPI not reachable at ${QUERY_SERVICE_URL}`);
+      return;
+    }
 
-    const result = await client.callTool({
-      name: 'query',
-      arguments: {
-        question: 'frob nonce quux zzzz xyzzy aaabbb — guaranteed empty result',
+    const res = await fetch(`${QUERY_SERVICE_URL}/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question: 'xyzzy-nonsense-query-that-matches-nothing-in-any-notebook',
         notebook: 'kong',
-        top_k: 5,
-      },
+      }),
+      signal: AbortSignal.timeout(60000),
     });
 
-    expect(result.isError).toBeFalsy();
-    const content = result.content[0] as { text: string };
-    const parsed = JSON.parse(content.text) as { answer: string; citations: unknown[] };
-    expect(Array.isArray(parsed.citations)).toBe(true);
-    // empty result is NOT an error — answer is still a string
-    expect(typeof parsed.answer).toBe('string');
+    expect(res.ok).toBe(true);
+    const body = await res.json();
+    const result = QueryOutputSchema.safeParse(body);
+
+    if (!result.success) {
+      throw new Error(
+        `FastAPI /query empty-result response does not match MCP QueryOutputSchema.\n` +
+          `Schema errors:\n${JSON.stringify(result.error.errors, null, 2)}\n\n` +
+          `Actual response:\n${JSON.stringify(body, null, 2)}`,
+      );
+    }
+
+    expect(result.success).toBe(true);
+    expect(result.data.citations).toHaveLength(0);
   });
 
-  it('returns isError:true when FastAPI query service is unreachable', async () => {
-    jest.resetModules();
-    // point to a port nothing is listening on
-    process.env['QUERY_SERVICE_URL'] = 'http://localhost:19997';
+  it('FastAPI /query rejects unknown notebook with 422', async () => {
+    if (!serviceAvailable) {
+      console.warn(`Skipping: FastAPI not reachable at ${QUERY_SERVICE_URL}`);
+      return;
+    }
 
-    const { createServer, registerTools } = await import('../../../src/server.js');
-    const { InMemoryTransport } = await import('@modelcontextprotocol/sdk/inMemory.js');
-    const { Client: McpClient } = await import('@modelcontextprotocol/sdk/client/index.js');
-
-    const badServer = createServer();
-    await registerTools(badServer);
-    const [ct, st] = InMemoryTransport.createLinkedPair();
-    await badServer.connect(st);
-    const badClient = new McpClient({ name: 'bad-query-test', version: '1.0.0' });
-    await badClient.connect(ct);
-
-    const result = await badClient.callTool({
-      name: 'query',
-      arguments: { question: 'test', notebook: 'personal' },
+    const res = await fetch(`${QUERY_SERVICE_URL}/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: 'test', notebook: 'invalid-notebook' }),
+      signal: AbortSignal.timeout(10000),
     });
 
-    expect(result.isError).toBe(true);
-
-    await badClient.close();
-    // restore
-    process.env['QUERY_SERVICE_URL'] = process.env['TEST_QUERY_SERVICE_URL'] ?? 'http://localhost:8000';
+    expect(res.status).toBe(422);
   });
 });
