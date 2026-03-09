@@ -10,8 +10,9 @@
     "test": "jest --selectProjects unit contract",
     "test:unit": "jest --selectProjects unit",
     "test:contract": "jest --selectProjects contract",
-    "test:integration": "jest --selectProjects integration",
-    "test:all": "jest",
+    "test:integration": "jest --selectProjects integration --forceExit",
+    "test:e2e": "jest --selectProjects e2e --forceExit",
+    "test:all": "jest --forceExit",
     "lint": "prettier --check src/ tests/"
   },
   "dependencies": {
