@@ -8,9 +8,9 @@
 
 ## Current Status
 
-**Phase:** Spec #5 CLOSED ✅ — all 3 user stories complete; 5/5 Kong integration tests green; cold-start + restart verified. Ready for Spec #7.
+**Phase:** Spec #7 (Audio Overview) — IN PROGRESS 🔄 on branch `010-audio-overview`. Python implementation + 43 unit tests green. MCP integration test written but not yet executed against live stack. Docker rebuild (T017) and MCP integration test verification (T022) remain.
 **Last updated:** 2026-03-09
-**Next action:** Spec #7 (Audio Overview) — FastAPI `/audio-overview` + `audio_overview` MCP tool. Requires new spec issue before any implementation.
+**Next action:** T017 — `docker compose build --no-cache query && docker compose up -d query`; T019/T022 — run MCP audio integration test against live stack; Phase 6 polish (mypy, black/ruff, full suite); open PR.
 
 ---
 
@@ -104,12 +104,20 @@ Nothing in progress.
 
 **~~Spec #5 — Kong MCP Gateway~~** (CLOSED ✅ — see Completed above)
 
-**Spec #7 — Audio Overview** (beads: plaudeLM-69j, P3)
-- `query/audio.py` — llama3.2 podcast script generation (host + guest format)
-- TTS via local Coqui TTS or Ollama TTS
-- `POST /audio-overview` FastAPI endpoint
-- `audio_overview` MCP tool
-- Acceptance: returns valid audio file path, script > 200 words
+**Spec #7 — Audio Overview** (beads: plaudeLM-69j, P3) — IN PROGRESS on `010-audio-overview`
+- [x] GitHub Issue #10 created; spec/plan/research/data-model/contracts/quickstart/tasks committed
+- [x] `query/audio.py` — AudioGenerator: embed→Qdrant→LLM script→pyttsx3 TTS WAV
+- [x] `query/models.py` — AudioOverviewRequest, AudioOverviewResponse
+- [x] `query/config.py` — AUDIO_OUTPUT_DIR env var + mkdir at startup
+- [x] `query/main.py` — POST /audio-overview endpoint
+- [x] `query/Dockerfile` — espeak-ng + libespeak-ng1 apt packages
+- [x] `docker-compose.yml` — audio_data volume + AUDIO_OUTPUT_DIR env
+- [x] `query/tests/unit/test_audio.py` — 13 unit tests, **13/13 green**
+- [x] `query/tests/integration/test_audio_endpoint.py` — 5 integration tests (require live stack)
+- [x] `mcp/tests/integration/tools/audio.integration.test.ts` — written, not yet run
+- [ ] T017 — `docker compose build --no-cache query && docker compose up -d query`
+- [ ] T022 — verify MCP audio integration test against live stack
+- [ ] Phase 6 — mypy, black/ruff, full test suite, PR
 
 ### Later Backlog
 
@@ -227,6 +235,10 @@ Nothing in progress.
 | 2026-03-09 | MCP SDK Server is single-connection per instance | createServer() must be called per initialize request in Streamable HTTP mode, not once at startup; second connect() call on same instance throws "Already connected to a transport" |
 | 2026-03-09 | Streamable HTTP requires Accept: application/json, text/event-stream | SDK returns 406 Not Acceptable without this header; all MCP clients (Insomnia, curl, Claude) must send it |
 | 2026-03-09 | Neo4j JS driver sends JS number as float64 — LIMIT/SKIP require neo4j.int() | JS number type is always float; Neo4j rejects 10.0 in LIMIT clause; wrap all integer Cypher params with neo4j.int(value) from neo4j-driver |
+| 2026-03-09 | TTS uses pyttsx3 + espeak-ng (local, CPU-only) | Coqui TTS rejected (500MB+, CUDA dep); gTTS rejected (requires internet); pyttsx3+espeak-ng is ~5MB apt, headless-compatible, no GPU; quality is robotic — piper-tts is the planned upgrade |
+| 2026-03-09 | pyttsx3 blocks event loop — wrap in run_in_executor | pyttsx3.init() + runAndWait() are synchronous; must use asyncio.get_event_loop().run_in_executor(None, _run_tts) to avoid blocking the async FastAPI worker |
+| 2026-03-09 | AUDIO_OUTPUT_DIR volume mount pattern | audio_data Docker named volume mounted at /data/audio; Config.__init__ calls os.makedirs(exist_ok=True) — Docker volume may not pre-create subdirs |
+| 2026-03-09 | speckit branch naming requires NNN-feature-name format | check_feature_branch() enforces ^[0-9]{3}- regex; feat/NNN-slug fails; use 010-audio-overview not feat/10-audio-overview |
 
 ---
 
@@ -259,7 +271,7 @@ Nothing in progress.
 - **Kong RAG Injector not usable** — only supports Redis/pgvector and cloud embedding providers; not compatible with Qdrant + Azure OpenAI via Kong.
 - **`docker compose kill` suppresses restart** — to test `restart: unless-stopped`, kill PID 1 inside the container: `docker exec plaudelm-mcp kill -9 1`.
 - **plaudelm-mcp running in SSE mode** — MCP_TRANSPORT=sse in .env; all clients connect via Kong. For local stdio debugging: `MCP_TRANSPORT=stdio node dist/index.js` outside Docker.
-- **audio_overview FastAPI `/audio-overview` endpoint not implemented** — Spec #7. The MCP tool exists and delegates to FastAPI; the FastAPI side is not yet built. Returns 404 from query service — expected.
+- **audio_overview endpoint implemented but Docker rebuild required** — `query/audio.py` + `POST /audio-overview` implemented; pyttsx3 added to requirements.txt; espeak-ng added to Dockerfile. Must run `docker compose build --no-cache query` before the container has TTS capability. WAV synthesis will fail in the old container.
 - **search_concepts uses Lucene fulltext tokenization** — query on individual words only. "rate limiting" or "rate" works; "ratelimiting" (concatenated) returns 0 results. Index tokenizes on whitespace and hyphens.
 - **query/venv** — must be created locally before running pytest: `python3 -m venv venv && ./venv/bin/pip install -r requirements.txt -r requirements-dev.txt`
 - **Stale branches cleaned** — deleted: feat/1-neo4j-infrastructure, feat/3-n8n-graph-extraction, feat/5-query-service, feat/7-mcp-server, spec/1-neo4j-infrastructure (all fully merged to dev)
@@ -267,6 +279,23 @@ Nothing in progress.
 ---
 
 ## Session Notes
+
+### 2026-03-09 — Spec #7 Audio Overview — implementation session
+
+- GitHub Issue #10 created for Spec #7 Audio Overview
+- Full speckit workflow: specify → plan → tasks (via speckit.plan + speckit.tasks skills)
+- spec artifacts committed: spec.md, plan.md, research.md, data-model.md, contracts/, quickstart.md, tasks.md
+- Branch renamed from feat/10-audio-overview → 010-audio-overview (speckit requires NNN- prefix)
+- Phase 1 (Setup): .env.example, docker-compose.yml, requirements.txt, Dockerfile — all done
+- Phase 2 (Foundational): AudioOverviewRequest/Response models, AUDIO_OUTPUT_DIR config, main.py imports — all done
+- Phase 3+4 (US1+US2): AudioGenerator fully implemented (embed→Qdrant→LLM→TTS), POST /audio-overview endpoint
+- TDD: 13 unit tests written first (red: ModuleNotFoundError), pyttsx3 installed, 13/13 green
+- TTS: pyttsx3 + espeak-ng; pyttsx3.runAndWait() wrapped in run_in_executor to avoid blocking event loop
+- 43/43 Python unit tests green; 73/73 MCP unit+contract tests green; 0 regression
+- T017 (Docker rebuild) and T022 (MCP integration test vs live stack) deferred — require running container
+- MCP integration test written: mcp/tests/integration/tools/audio.integration.test.ts
+- 3 atomic commits pushed to origin/010-audio-overview
+- bd ready shows: plaudeLM-y0x (Spec #5 Kong MCP Gateway Route) — P2, unblocked
 
 ### 2026-03-09 — Spec #5 Kong MCP Gateway closed
 - deck dump → `kong/api-gateway/deck/kong.yaml`; IaC confirmed (plaudelm-mcp, plaudelm-chat, plaudelm-embed services)
