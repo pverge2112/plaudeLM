@@ -98,9 +98,10 @@ No custom frontend. No external AI APIs.
 **Responsibility:** Orchestrate document ingestion from all source types. Chunk, summarize, extract graph entities, embed, and persist to Qdrant + Neo4j.
 
 ### Kong AI Gateway (`kong/`)
-**Platform:** Kong Gateway with AI plugins  
-**Ports:** 8000 (proxy), 8001 (admin)  
-**Responsibility:** Route all LLM/embedding calls to Ollama. Enforce rate limiting, PII sanitization, and request logging on all AI traffic.
+**Platform:** Kong Konnect (cloud control plane + local Docker data plane)
+**Ports:** 8000 (proxy), 8443 (HTTPS proxy) — no local admin API
+**Config:** Declarative decK YAML at `kong/api-gateway/deck/kong.yaml`; applied via `deck sync --konnect-control-plane-name plaudelm`
+**Responsibility:** Route all LLM/embedding calls to Azure OpenAI and proxy MCP traffic. Enforce rate limiting, PII sanitization, key-auth, and request logging on all AI traffic.
 
 ### Qdrant
 **Image:** `qdrant/qdrant:latest`  

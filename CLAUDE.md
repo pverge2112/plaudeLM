@@ -166,16 +166,15 @@ Full tool schemas in `ARCHITECTURE.md`.
 
 | Service | URL |
 |---|---|
-| Ollama | http://localhost:11434 |
 | Qdrant REST | http://localhost:6333 |
 | Qdrant gRPC | localhost:6334 |
 | Neo4j Browser | http://localhost:7474 |
 | Neo4j Bolt | bolt://localhost:7687 |
 | n8n | http://localhost:5678 |
-| Query API | http://localhost:8000 |
+| Query API | http://localhost:8081 (host) / http://localhost:8000 (internal) |
 | MCP Server (SSE) | http://localhost:3000 |
 | Kong Gateway proxy | http://localhost:8000 |
-| Kong Gateway admin | http://localhost:8001 |
+| Kong control plane | Konnect cloud (no local admin API — data plane only) |
 
 ---
 

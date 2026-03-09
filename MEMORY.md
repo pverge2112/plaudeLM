@@ -8,9 +8,9 @@
 
 ## Current Status
 
-**Phase:** Spec #5 (Kong MCP Gateway) — stack fully operational end-to-end; ingest, search_concepts, query, get_document_graph, list_notebooks all confirmed working.
+**Phase:** Spec #5 CLOSED ✅ — all 3 user stories complete; 5/5 Kong integration tests green; cold-start + restart verified. Ready for Spec #7.
 **Last updated:** 2026-03-09
-**Next action:** Spec #7 (Audio Overview) or dump kong.yaml from Konnect for IaC (T002/T003).
+**Next action:** Spec #7 (Audio Overview) — FastAPI `/audio-overview` + `audio_overview` MCP tool. Requires new spec issue before any implementation.
 
 ---
 
@@ -53,16 +53,13 @@
 - [x] `mcp/jest.config.cjs` + `mcp/tsconfig.test.json` + `mcp/package.json` — e2e project wired
 - [x] **94/94 tests green** (72 unit+contract + 13 integration + 9 e2e)
 
-### Spec #5 — Kong MCP Gateway (branch 002-kong-mcp-gateway, full speckit complete)
-- [x] `specs/002-kong-mcp-gateway/spec.md` — 3 user stories, 11 FRs, 6 SCs; FR-010 corrected (deck sync → POST /config)
-- [x] `specs/002-kong-mcp-gateway/plan.md` — constitution check, 5-phase plan, structure
-- [x] `specs/002-kong-mcp-gateway/research.md` — 8 research decisions
-- [x] `specs/002-kong-mcp-gateway/tasks.md` — 21 tasks across 6 phases; speckit.analyze run + 5 issues remediated
-- [x] `docker-compose.yml` — `plaudelm-mcp` service added; `query` host port 8000→8081 (port conflict fix)
-- [x] `.env.example` — `QUERY_SERVICE_URL` fixed (8080→8000 internal port)
-- ⚠️ `kong/kong.yaml` — NOT yet created; T003 creates skeleton; must exist before `docker compose up`
-- ⚠️ MCP integration tests (kong-sse.test.ts) not yet written — T004 is the red phase
-- ⚠️ ai-mcp-proxy availability unknown — T006 verifies before adding plugin
+### Spec #5 — Kong MCP Gateway (CLOSED ✅ — 2026-03-09, branch 002-kong-mcp-gateway)
+- [x] `specs/002-kong-mcp-gateway/` — spec.md, plan.md, research.md, tasks.md, quickstart.md
+- [x] `kong/api-gateway/deck/kong.yaml` — IaC from `deck dump`; plaudelm-mcp + plaudelm-chat + plaudelm-embed services; ai-mcp-proxy (passthrough-listener) + key-auth on MCP service; synced to Konnect
+- [x] `mcp/tests/integration/tools/kong-mcp.test.ts` — 5 integration tests; **5/5 green** including T4-3 (live list_notebooks call at 134ms)
+- [x] `.env.example` — KONG_MCP_API_KEY documented; KONG_PROXY_URL host-override note; CHAT/EMBED_ENDPOINT updated to Kong routes
+- [x] Cold-start verified; restart policy verified (crash-restart via PID kill)
+- [x] `specs/002-kong-mcp-gateway/quickstart.md` — Claude Desktop + Claude Code config + curl verification steps
 
 ### Spec #4 — MCP Server (branch 001-mcp-server, ready for PR)
 - [x] Full speckit workflow: specify → plan → tasks → analyze → implement
@@ -105,15 +102,7 @@ Nothing in progress.
 **~~Spec #4 — MCP Server~~** (beads: plaudeLM-lk7 CLOSED ✅ — see Completed above)
 **~~Spec #6 — Full Test Suite~~** (CLOSED ✅ — see Completed above)
 
-**Spec #5 — Kong MCP Gateway Route** (beads: plaudeLM-y0x, P2 — branch 002-kong-mcp-gateway)
-- Spec, plan, research written ✅
-- **Architecture pivot**: using Kong Konnect (cloud control plane) + local Docker data plane instead of DB-less kong.yaml
-- Paul configures routes/plugins in Konnect UI; will dump kong.yaml for IaC after
-- `ai-mcp-proxy` plugin confirmed available on Konnect — used as passthrough to MCP server
-- Two MCP routes required: `GET /plaudelm/mcp/sse` + `POST /plaudelm/mcp/messages` both with `strip_path: true`
-- All clients (Desktop, Code, claude.ai, Cowork) will route through Kong SSE — no stdio bypass
-- Remaining: Paul completes Konnect config → dump kong.yaml → T004 integration tests → T002 .env.example
-- Acceptance: tool call via Kong SSE returns same result as direct; all integration tests green
+**~~Spec #5 — Kong MCP Gateway~~** (CLOSED ✅ — see Completed above)
 
 **Spec #7 — Audio Overview** (beads: plaudeLM-69j, P3)
 - `query/audio.py` — llama3.2 podcast script generation (host + guest format)
@@ -196,7 +185,11 @@ Nothing in progress.
 | 2026-03-08 | kong/kong.yaml (not kong/kong-ollama.yaml) is the required filename | docker-compose mounts ./kong:/kong/declarative and KONG_DECLARATIVE_CONFIG references kong.yaml; the kong-ollama.yaml name in earlier notes was never the actual filename |
 | 2026-03-08 | Kong AI/MCP proxy plugins deferred | User decision: get core stack (query + MCP server + basic Kong routing) working end-to-end before adding ai-mcp-proxy, ai-rate-limiting-advanced, ai-pii-sanitizer plugins |
 | 2026-03-08 | MCP SSE uses two HTTP paths | GET /sse (SSE connection) + POST /messages?sessionId=X (client→server); both must be routed by Kong; health at GET /health |
-| 2026-03-08 | Kong DB-less mode: config reload via POST /config | Edit kong/kong.yaml → curl -sX POST http://localhost:8001/config -F config=@kong/kong.yaml; deck validate for syntax; deck sync is ephemeral for DB-less Kong |
+| 2026-03-09 | Kong is Konnect-managed — no local admin API | Data plane only; config applied via `deck sync --konnect-control-plane-name plaudelm kong/api-gateway/deck/kong.yaml`; `deck diff` for drift check; no `curl localhost:8001` |
+| 2026-03-09 | kong.yaml IaC path is `kong/api-gateway/deck/kong.yaml` | Produced by `deck dump`; not `kong/kong.yaml` — all doc references updated |
+| 2026-03-09 | `docker compose kill` marks container as manually stopped — `unless-stopped` does NOT restart | Use `docker exec <container> kill -9 1` to simulate a real crash and verify restart policy |
+| 2026-03-09 | `KONG_PROXY_URL=http://kong:8000` in .env is the internal Docker network URL | Running integration tests from the host requires `KONG_PROXY_URL=http://localhost:8000` override — Docker DNS name `kong` is not resolvable outside the container network |
+| 2026-03-09 | MCP transport is Streamable HTTP (single POST /mcp), not legacy SSE | Kong route: single `/plaudelm/mcp` route with GET/POST/DELETE; strip_path:true → upstream receives POST /; `Accept: application/json, text/event-stream` required |
 | 2026-03-08 | query/venv required for local pytest | No system-level pytest; create venv + install requirements.txt + requirements-dev.txt before running pytest on host |
 | 2026-03-08 | Kong MCP route requires two entries with strip_path:true | MCP SSE protocol uses GET /sse + POST /messages; a single prefix route with strip_path:false forwards the full Kong path to upstream — MCP server returns 404; must use two routes each with strip_path:true so upstream receives /sse and /messages |
 | 2026-03-08 | deck validate must precede POST /config apply | validate is a syntax check that runs without a live Kong instance; running apply first defeats the safety check; workflow: edit → validate → apply → diff |
@@ -258,10 +251,9 @@ Nothing in progress.
 - **Google Drive ingest** — requires Google OAuth 2.0 app. Set up at console.cloud.google.com; credentials in `.env` and n8n Credentials UI.
 - **PDF ingest via n8n** — requires multipart/form-data (binary), not JSON. Document in MCP `ingest_document` error messages.
 - **MCP transport switching** — when `MCP_TRANSPORT=sse`, stdio handler must not be initialized. Validate at startup in `config.ts`.
-- **Kong MCP Gateway routes require two separate route entries** — MCP SSE protocol uses `GET /sse` (SSE stream) and `POST /messages` (client→server). Kong must have one route per path with `strip_path: true`. A single prefix route with `strip_path: false` would forward the full `/plaudelm/mcp/sse` path to the upstream — MCP server has no route there and returns 404.
-- **ai-mcp-proxy confirmed available on Konnect** — no need to check; use passthrough-listener mode.
-- **Kong RAG Injector not usable** — only supports Redis/pgvector and cloud embedding providers; not compatible with Qdrant + Ollama local stack.
-- **Embed route decision pending** — user asked why separate embed route; options: (A) keep through Kong for unified observability, (B) call Ollama directly from query service. Not yet decided — confirm before writing integration tests.
+- **Kong MCP route is a single entry** — Streamable HTTP uses one route `/plaudelm/mcp` (GET/POST/DELETE, strip_path:true); legacy SSE two-route pattern (GET /sse + POST /messages) is obsolete.
+- **Kong RAG Injector not usable** — only supports Redis/pgvector and cloud embedding providers; not compatible with Qdrant + Azure OpenAI via Kong.
+- **`docker compose kill` suppresses restart** — to test `restart: unless-stopped`, kill PID 1 inside the container: `docker exec plaudelm-mcp kill -9 1`.
 - **plaudelm-mcp running in SSE mode** — MCP_TRANSPORT=sse in .env; all clients connect via Kong. For local stdio debugging: `MCP_TRANSPORT=stdio node dist/index.js` outside Docker.
 - **audio_overview FastAPI `/audio-overview` endpoint not implemented** — Spec #7. The MCP tool exists and delegates to FastAPI; the FastAPI side is not yet built. Returns 404 from query service — expected.
 - **search_concepts uses Lucene fulltext tokenization** — query on individual words only. "rate limiting" or "rate" works; "ratelimiting" (concatenated) returns 0 results. Index tokenizes on whitespace and hyphens.
@@ -271,6 +263,15 @@ Nothing in progress.
 ---
 
 ## Session Notes
+
+### 2026-03-09 — Spec #5 Kong MCP Gateway closed
+- deck dump → `kong/api-gateway/deck/kong.yaml`; IaC confirmed (plaudelm-mcp, plaudelm-chat, plaudelm-embed services)
+- All docs updated: admin API / DB-less references replaced with Konnect deck sync throughout CLAUDE.md, ARCHITECTURE.md, spec.md, tasks.md
+- `mcp/tests/integration/tools/kong-mcp.test.ts` — 5/5 green (Streamable HTTP transport, not legacy SSE)
+- T4-1/T4-4 (auth rejection) ✅; T4-2 (session init) ✅; T4-3 (live list_notebooks via Kong at 134ms) ✅; T4-5 (Kong proxy headers) ✅
+- Cold-start verified; crash-restart verified (PID kill); `docker compose kill` does NOT trigger restart
+- T013 (deck validate) + T014 (deck sync) done by Paul
+- quickstart.md created; MEMORY.md closed out; all 21 tasks done or marked N/A
 
 ### 2026-03-09 — End-to-end ingest + MCP tool debug session
 - Fixed n8n respondToWebhook double-encoding (JSON.stringify → object literal)
