@@ -46,7 +46,7 @@ class RagRetriever:
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 url,
-                json={"input": question, "model": "nomic-embed-text"},
+                json={"input": question},
                 timeout=30.0,
             )
             response.raise_for_status()

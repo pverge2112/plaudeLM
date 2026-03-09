@@ -196,10 +196,70 @@ Service names in docker-compose.yml (`ollama`, `qdrant`, `neo4j`, `n8n`, `query`
 must remain stable. They will become Kubernetes Service names during k3s migration.
 Do not rename services without a migration spec.
 
-### IV.5 — Schema-First for MCP Tools
+### IV.5 — Docker Builds Must Use --no-cache
+Always build Docker images with `--no-cache`:
+```bash
+docker compose build --no-cache <service>
+```
+Never run `docker compose build` without `--no-cache`. Cached layers silently carry
+stale build artifacts and mask bugs. This rule applies to every service, every build.
+
+### IV.6 — Schema-First for MCP Tools
 MCP tool input/output schemas (defined via Zod) are the source of truth.
 The FastAPI Pydantic models and Neo4j Cypher queries must conform to these schemas,
 not the other way around. If a schema changes, update contract tests first.
+
+---
+
+## Article IV-B — External Component Rules
+
+### IV-B.1 — Look Up Docs Before Touching Any Component
+Before writing or debugging any code that touches an external component (database,
+runtime, framework, SDK, protocol), fetch the **current official documentation** and
+read the relevant section. Do not rely on training-data assumptions.
+
+Components in this project that require doc lookup before touch:
+| Component | Canonical docs |
+|---|---|
+| Neo4j 5 + Cypher | https://neo4j.com/docs/cypher-manual/current/ |
+| Neo4j JS driver | https://neo4j.com/docs/javascript-manual/current/ |
+| Qdrant | https://qdrant.tech/documentation/ |
+| MCP SDK (TypeScript) | https://modelcontextprotocol.io/docs |
+| Kong AI Gateway / plugins | https://docs.konghq.com/hub/ |
+| n8n | https://docs.n8n.io/ |
+| FastAPI | https://fastapi.tiangolo.com/ |
+| Ollama | https://ollama.com/docs |
+
+This rule exists because: assuming an index exists, assuming an API shape,
+or assuming a default behavior without verification caused real production
+failures in this project. Read first, then act.
+
+### IV-B.2 — Never Swallow Exceptions
+Every `catch` block must surface the original error message verbatim.
+The pattern `catch (err) { throw new McpError(..., 'generic message') }` is forbidden.
+
+Required pattern:
+```typescript
+} catch (err) {
+  const msg = err instanceof Error ? err.message : String(err);
+  throw new McpError(ErrorCode.InternalError, `<context>: ${msg}`);
+}
+```
+
+Rationale: swallowed errors hide the root cause and force guessing during
+debugging. Every error must include enough context to diagnose without a debugger.
+
+### IV-B.3 — Init Scripts Are Part of the Stack — Run Them
+Every database or store that has an init script (`scripts/init-*.py`, `scripts/init-*.sh`)
+**must be run before the MCP server or query service is started**.
+These scripts are not optional post-setup steps — they are required stack prerequisites.
+
+Checklist before declaring the stack "running":
+- [ ] `scripts/init-qdrant.py` executed — collections exist
+- [ ] `scripts/init-neo4j.py` executed — constraints + indexes exist (including `conceptNameIndex`)
+- [ ] Verify with the `verify()` function output before proceeding
+
+Add init script execution to any stack bring-up runbook or automation.
 
 ---
 

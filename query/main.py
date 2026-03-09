@@ -138,7 +138,6 @@ async def query(request: QueryRequest) -> QueryResponse:
             resp = await client.post(
                 f"{_config.kong_proxy_url}/plaudelm/chat",
                 json={
-                    "model": "llama3.2",
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": 0.1,
                     "max_tokens": 512,

@@ -102,7 +102,6 @@ class GraphRetriever:
             response = await client.post(
                 url,
                 json={
-                    "model": "llama3.2",
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": 0.0,
                 },

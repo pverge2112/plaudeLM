@@ -150,47 +150,36 @@ config:
 
 > Higher timeouts required — MCP SSE connections are long-lived streams.
 
-### Routes
+### Route
 
-> ⚠️ Two separate routes are required. A single prefix route will not work — the MCP server listens at `/sse` and `/messages`, not at the Kong prefix path. `strip_path: true` on each route ensures the upstream receives the correct path.
-
-#### Route 1 — SSE Connection
+> Single route — Streamable HTTP uses one endpoint for all MCP traffic. `strip_path: true` strips `/plaudelm/mcp` so the upstream receives requests at `/mcp`.
 
 | Field | Value |
 |---|---|
-| Name | `plaudelm-mcp-sse` |
-| Path | `/plaudelm/mcp/sse` |
-| Methods | `GET` |
+| Name | `plaudelm-mcp-route` |
+| Path | `/plaudelm/mcp` |
+| Methods | `GET`, `POST`, `DELETE` |
 | Strip Path | `true` |
 
-> Upstream receives: `GET /sse`
-
-#### Route 2 — Message Posting
-
-| Field | Value |
-|---|---|
-| Name | `plaudelm-mcp-messages` |
-| Path | `/plaudelm/mcp/messages` |
-| Methods | `POST` |
-| Strip Path | `true` |
-
-> Upstream receives: `POST /messages`
+> `strip_path: true` — Kong strips `/plaudelm/mcp`; upstream receives `POST /`, `GET /`, `DELETE /`. The MCP server handles all three methods at the root path.
 
 ### Plugins
 
 #### `ai-mcp-proxy`
 
-> Mode `passthrough-listener` proxies all traffic to the upstream MCP server without tool conversion. Kong enforces ACL and logs — the MCP server handles all tool definitions.
+> Mode `passthrough-listener` proxies all traffic to the upstream MCP server without tool conversion. Kong enforces ACL and logs — the MCP server handles all tool definitions. No `tools` array needed in this mode.
 
 ```yaml
 name: ai-mcp-proxy
 config:
   mode: passthrough-listener
-  timeout: 120000
-  forward_client_headers: true
-  log_statistics: true
-  log_payloads: false
-  log_audits: true
+  server:
+    timeout: 120000          # ms — must cover full Ollama inference window (default is 10000, too short)
+    forward_client_headers: true
+  logging:
+    log_statistics: true
+    log_payloads: false
+    log_audits: true
 ```
 
 #### `key-auth`
@@ -218,8 +207,10 @@ config:
 | Field | Value |
 |---|---|
 | Username | `paul` |
-| Plugin | `key-auth` |
-| Credential (key) | value of `KONG_MCP_API_KEY` from `.env` |
+| Credential type | `key-auth` |
+| Key value | value of `KONG_MCP_API_KEY` from `.env` |
+
+> The `key-auth` plugin is on the service — not the consumer. The consumer only needs a key-auth credential created and associated with it.
 
 ---
 
@@ -233,7 +224,8 @@ Once services and routes are live, configure Claude clients to connect via Kong:
 {
   "mcpServers": {
     "plaudelm": {
-      "url": "http://localhost:8000/plaudelm/mcp/sse",
+      "type": "http",
+      "url": "http://localhost:8000/plaudelm/mcp",
       "headers": {
         "apikey": "<KONG_MCP_API_KEY>"
       }
@@ -245,7 +237,7 @@ Once services and routes are live, configure Claude clients to connect via Kong:
 ### Claude Code
 
 ```bash
-claude mcp add --transport sse plaudelm http://localhost:8000/plaudelm/mcp/sse \
+claude mcp add --transport http plaudelm http://localhost:8000/plaudelm/mcp \
   --header "apikey:<KONG_MCP_API_KEY>"
 ```
 
@@ -253,10 +245,11 @@ claude mcp add --transport sse plaudelm http://localhost:8000/plaudelm/mcp/sse \
 
 ## MCP Tool → Kong Path Mapping
 
-| MCP Tool | Transport | Kong Path |
+| Action | Method | Kong Path |
 |---|---|---|
-| All 7 tools (tool calls) | `POST` | `/plaudelm/mcp/messages?sessionId=<id>` |
-| SSE stream (session init) | `GET` | `/plaudelm/mcp/sse` |
+| Initialize session + tool calls | `POST` | `/plaudelm/mcp` |
+| Server-initiated SSE stream | `GET` | `/plaudelm/mcp` |
+| Close session | `DELETE` | `/plaudelm/mcp` |
 
 ---
 
@@ -266,10 +259,14 @@ After applying config, verify with:
 
 ```bash
 # No key → 401
-curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/plaudelm/mcp/sse
+curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:8000/plaudelm/mcp
 
-# Valid key → 200 + SSE stream
-curl -H "apikey: <KONG_MCP_API_KEY>" http://localhost:8000/plaudelm/mcp/sse
+# Valid key, no session → 400 (expected — no initialize request body)
+curl -s -o /dev/null -w "%{http_code}" -X POST \
+  -H "apikey: <KONG_MCP_API_KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  http://localhost:8000/plaudelm/mcp
 
 # Embed route reachable
 curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:8000/plaudelm/embed

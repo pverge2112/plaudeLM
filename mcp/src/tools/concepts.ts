@@ -6,6 +6,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
+import neo4j from 'neo4j-driver';
 import { Neo4jClient } from '../clients/neo4j.js';
 import { config } from '../config.js';
 
@@ -60,10 +61,10 @@ export function registerConceptsTools(server: McpServer): void {
       const records = await client.runQuery(cypher, {
         query: parsed.data.query,
         notebook: parsed.data.notebook ?? null,
-        limit: parsed.data.limit,
+        limit: neo4j.int(parsed.data.limit),
       });
 
-      const concepts = records.map((r) => ({
+const concepts = records.map((r) => ({
         name: r.get('name') as string,
         notebooks: r.get('notebooks') as string[],
         relationship_count: (r.get('relationship_count') as { toNumber(): number }).toNumber(),

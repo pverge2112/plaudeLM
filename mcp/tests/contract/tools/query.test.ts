@@ -14,11 +14,12 @@ const QueryInputSchema = z.object({
 });
 
 const CitationSchema = z.object({
-  chunk_id: z.string().uuid(),
-  document_title: z.string(),
+  chunk_id: z.string(),
+  neo4j_chunk_id: z.string(),
   chunk_text: z.string(),
-  score: z.number().min(0).max(1),
-  source_url: z.string().url().optional(),
+  title: z.string(),
+  score: z.number().min(0),
+  source_url: z.string().url().nullish(),
 });
 
 const QueryOutputSchema = z.object({
@@ -59,7 +60,8 @@ describe('query tool contract', () => {
       citations: [
         {
           chunk_id: '123e4567-e89b-12d3-a456-426614174000',
-          document_title: 'Kong Docs',
+          neo4j_chunk_id: '123e4567-e89b-12d3-a456-426614174000',
+          title: 'Kong Docs',
           chunk_text: 'Kong is...',
           score: 0.92,
         },

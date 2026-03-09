@@ -21,10 +21,8 @@ export class Neo4jClient {
       const result = await session.run(cypher, params);
       return result.records;
     } catch (err) {
-      throw new McpError(
-        ErrorCode.InternalError,
-        'graph store unavailable — check that Neo4j is running',
-      );
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new McpError(ErrorCode.InternalError, `Neo4j query failed: ${msg}`);
     } finally {
       await session.close();
     }
@@ -36,10 +34,8 @@ export class Neo4jClient {
       const result = await session.run(cypher, params);
       return result.summary;
     } catch (err) {
-      throw new McpError(
-        ErrorCode.InternalError,
-        'graph store unavailable — check that Neo4j is running',
-      );
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new McpError(ErrorCode.InternalError, `Neo4j write failed: ${msg}`);
     } finally {
       await session.close();
     }

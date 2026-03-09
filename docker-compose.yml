@@ -1,26 +1,5 @@
 services:
   # ---------------------------------------------------------------------------
-  # Ollama — local LLM inference (llama3.2, nomic-embed-text)
-  # Never called directly — always via Kong AI Gateway
-  # ---------------------------------------------------------------------------
-  ollama:
-    image: ollama/ollama:latest
-    container_name: plaudelm-ollama
-    volumes:
-      - ollama_data:/root/.ollama
-    ports:
-      - "11434:11434"
-    networks:
-      - plaudelm
-    healthcheck:
-      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/11434' || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-    restart: unless-stopped
-
-  # ---------------------------------------------------------------------------
   # Qdrant — vector store (one collection per notebook: kong, personal, music)
   # ---------------------------------------------------------------------------
   qdrant:
@@ -87,11 +66,9 @@ services:
       N8N_SECURE_COOKIE: "false"
       N8N_RUNNERS_ENABLED: "true"
       NODE_FUNCTION_ALLOW_BUILTIN: "crypto"
-      # LLM endpoints used by ingest pipeline Code nodes.
-      # Dev default: Ollama direct (http://ollama:11434/api/*)
-      # Prod: set to Kong routes (http://kong:8000/plaudelm/*)
-      CHAT_ENDPOINT: ${CHAT_ENDPOINT:-http://ollama:11434/api/chat}
-      EMBED_ENDPOINT: ${EMBED_ENDPOINT:-http://ollama:11434/api/embed}
+      # LLM endpoints used by ingest pipeline Code nodes — always Kong routes
+      CHAT_ENDPOINT: ${CHAT_ENDPOINT:-http://kong:8000/plaudelm/chat}
+      EMBED_ENDPOINT: ${EMBED_ENDPOINT:-http://kong:8000/plaudelm/embed}
       # Data store URLs — Docker service names (stable per IV.4)
       QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
       NEO4J_HTTP_URL: ${NEO4J_HTTP_URL:-http://neo4j:7474}
@@ -108,8 +85,6 @@ services:
       qdrant:
         condition: service_healthy
       neo4j:
-        condition: service_healthy
-      ollama:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:5678/healthz || exit 1"]
@@ -164,8 +139,6 @@ services:
         condition: service_healthy
       neo4j:
         condition: service_healthy
-      ollama:
-        condition: service_healthy
     healthcheck:
       test:
         [
@@ -219,8 +192,6 @@ networks:
     driver: bridge
 
 volumes:
-  ollama_data:
-    name: plaudelm-ollama-data
   qdrant_data:
     name: plaudelm-qdrant-data
   neo4j_data:

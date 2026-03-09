@@ -8,9 +8,9 @@
 
 ## Current Status
 
-**Phase:** Spec #5 (Kong MCP Gateway) — stack fully running, Konnect config in progress. Paul configuring services/routes/plugins in Konnect UI; will dump kong.yaml after.
+**Phase:** Spec #5 (Kong MCP Gateway) — stack running, Azure OpenAI configured in Konnect, ingest pipeline being debugged end-to-end.
 **Last updated:** 2026-03-08
-**Next action:** Paul completes Konnect config (3 services, 4 routes, plugins per docs/kong-config-reference.md) → dump kong.yaml → T004 write integration tests → confirm embed route decision (Kong vs direct Ollama).
+**Next action:** Test `ingest_document` end-to-end — verify n8n executes cleanly with Azure models via Kong → test all 7 MCP tools → dump kong.yaml from Konnect for IaC.
 
 ---
 
@@ -213,10 +213,38 @@ Nothing in progress.
 | 2026-03-08 | All Claude clients route through Kong SSE — no stdio bypass | Desktop, Code, claude.ai, Cowork all connect to http://localhost:8000/plaudelm/mcp/sse with apikey header |
 | 2026-03-08 | api-gw.env and kong/api-gateway/cert/ added to .gitignore | Contain Konnect credentials and cluster cert — must never be committed |
 | 2026-03-08 | Konnect data plane cert PEM footer truncation | tls.crt had -----END CERTIFICATE---- (4 dashes, not 5); Kong fails to parse; fix with sed or text editor |
+| 2026-03-08 | MCP transport upgraded from SSE to Streamable HTTP | SSEServerTransport is legacy/deprecated; StreamableHTTPServerTransport is the current MCP standard; single POST endpoint replaces GET /sse + POST /messages; Claude clients default to Streamable HTTP |
+| 2026-03-08 | ai-mcp-proxy config: server.timeout and server.forward_client_headers are nested | Not top-level fields; timeout default is 10000ms (too short for Ollama); set server.timeout: 120000 |
+| 2026-03-08 | Kong route strip_path:true with /plaudelm/mcp → upstream receives POST / | Server must handle path === "/" as MCP endpoint; also handles "/mcp" for direct access |
+| 2026-03-08 | Kong consumer has credential type, not plugin | key-auth plugin goes on the service; consumer only gets a key-auth credential (the API key value) |
+| 2026-03-08 | Streamable HTTP server uses Transport cast | exactOptionalPropertyTypes:true makes StreamableHTTPServerTransport incompatible with Transport interface at onclose; fix with `transport as Transport` (not as unknown as) |
+| 2026-03-08 | Ollama removed — replaced with Azure OpenAI via Kong | llama3.2 CPU too slow; switched to gpt-4o-mini (chat) + text-embedding-3-large (embeddings); Ollama removed from docker-compose.yml entirely |
+| 2026-03-08 | Qdrant collections recreated at 3072 dimensions | text-embedding-3-large outputs 3072-dim; old 768-dim collections (nomic-embed-text) deleted and recreated |
+| 2026-03-08 | n8n workflow must NOT send model field to Kong | ai-proxy-advanced controls the model; sending model in request body triggers "cannot use own model" validation error; removed from all Code nodes |
+| 2026-03-09 | n8n workflow must NOT send options field to Azure OpenAI via Kong | options: {temperature} is Ollama syntax; Azure OpenAI rejects it with 400 "Unrecognized request argument: options"; use top-level temperature or omit (let Kong default); silent catch in Extract Graph Entities swallowed this error causing 0 concepts in Neo4j |
+| 2026-03-08 | ai-proxy-advanced embeddings use targets not embeddings config | top-level embeddings config is for RAG vector lookups; proxying embed requests requires targets array with route_type: llm/v1/embeddings |
+| 2026-03-08 | Kong ai-proxy-advanced no addresses = empty targets array | round-robin balancer needs at least one target; configure Azure endpoint in targets not embeddings section |
+| 2026-03-09 | setup-n8n.sh upsert pattern: GET by name → PATCH if exists, POST if not → PATCH active | POST /rest/workflows always creates a new ID regardless; must check by name first and use PATCH /rest/workflows/{id} with full workflow JSON to update in-place (PUT returns 404 on /rest/). Public API PUT /api/v1/workflows/{id} exists but requires X-N8N-API-KEY not in this project. |
+| 2026-03-09 | init scripts are required stack prerequisites, not optional | init-neo4j.py creates conceptNameIndex fulltext index; without it search_concepts fails at runtime; init-qdrant.py creates collections; must run both after fresh volume creation |
+| 2026-03-09 | catch blocks must surface original error message verbatim | generic "X unavailable" messages hide root cause; pattern: `const msg = err instanceof Error ? err.message : String(err); throw new McpError(..., \`context: ${msg}\`)` |
+| 2026-03-09 | MCP SDK Server is single-connection per instance | createServer() must be called per initialize request in Streamable HTTP mode, not once at startup; second connect() call on same instance throws "Already connected to a transport" |
+| 2026-03-09 | Streamable HTTP requires Accept: application/json, text/event-stream | SDK returns 406 Not Acceptable without this header; all MCP clients (Insomnia, curl, Claude) must send it |
+| 2026-03-09 | Neo4j JS driver sends JS number as float64 — LIMIT/SKIP require neo4j.int() | JS number type is always float; Neo4j rejects 10.0 in LIMIT clause; wrap all integer Cypher params with neo4j.int(value) from neo4j-driver |
 
 ---
 
 ## Known Issues / Watch Out For
+
+- **CRITICAL: init scripts must be run before the stack is usable** — `scripts/init-neo4j.py` creates the `conceptNameIndex` fulltext index that `search_concepts` requires. If it hasn't been run, every `search_concepts` call fails. Same for `init-qdrant.py` (collections). Run both after every fresh Neo4j/Qdrant volume creation. See CONSTITUTION.md IV-B.3.
+- **CRITICAL: never swallow exceptions with a generic message** — catch blocks must include `err.message` in the thrown error. Generic "X unavailable" messages hide root cause and force guessing. See CONSTITUTION.md IV-B.2.
+- **CRITICAL: look up official docs before touching any component** — do not assume API shapes, index names, default behaviors, or query syntax. Fetch current docs for Neo4j, Qdrant, Kong, n8n, MCP SDK before writing or debugging code that touches them. See CONSTITUTION.md IV-B.1.
+- **MCP server creates one Server instance per session (not shared)** — `createServer()` + `registerTools()` must be called inside the `isInitializeRequest` branch, not once at startup. The MCP SDK Server only supports one active connection per instance. Fixed in index.ts on 2026-03-09.
+
+
+
+- **Azure OpenAI deployment name must match exactly** — `deployment_id` in Konnect ai-proxy-advanced plugin is case-sensitive; copy verbatim from Azure OpenAI Studio → Deployments.
+- **n8n workflow re-import required after any Code node change** — edit the JSON, delete old workflow via REST API, import new, activate. Use setup-n8n.sh pattern or do manually via API.
+- **CRITICAL: Any credentials created via one-off curl/API calls MUST be saved to .env.example immediately** — n8n owner password was lost because it was only sent as a curl and never persisted. Use `scripts/setup-n8n.sh` which reads from .env. Never create credentials interactively without saving them.
 
 - **n8n import creates duplicates** — `n8n import:workflow` always creates a new workflow (new ID). After each import, activate new, deactivate + delete old via REST API.
 - **Qdrant client version mismatch** — host has qdrant-client 1.17.0 but server is 1.13.5. Tests pass; suppress with `check_compatibility=False` if needed. Pin to ~1.13.0 in venv.
@@ -242,6 +270,20 @@ Nothing in progress.
 ---
 
 ## Session Notes
+
+### 2026-03-08 — Spec #5 Azure migration + ingest pipeline debug session
+- Replaced Ollama with Azure OpenAI: gpt-4o-mini (chat) + text-embedding-3-large (embeddings)
+- Removed ollama service + depends_on from docker-compose.yml entirely
+- Upgraded MCP transport: SSEServerTransport → StreamableHTTPServerTransport (single POST /mcp endpoint)
+- Fixed ingest_document tool: was calling FastAPI /ingest (doesn't exist) → now calls n8n webhook directly
+- Fixed n8n workflow: removed hardcoded model names from all Code nodes (Kong controls model)
+- Qdrant collections recreated: 768-dim → 3072-dim (text-embedding-3-large)
+- ai-proxy-advanced embed config: moved from embeddings section → targets with route_type: llm/v1/embeddings
+- scripts/setup-n8n.sh written: idempotent owner setup + workflow import + activation from .env
+- Added N8N_OWNER_EMAIL/FIRSTNAME/LASTNAME/PASSWORD and KONG_MCP_API_KEY to .env.example
+- Kong route: strip_path:true, single POST/GET/DELETE /plaudelm/mcp route
+- n8n workflow re-imported with updated Code nodes (workflow ID: EBnvjaTW2hLDCarr)
+- Status at session end: ingest_document pending final test with Azure models
 
 ### 2026-03-08 — Spec #5 stack bring-up + global rename session
 - Global rename notebooklm → plaudelm across 28 files (container names, volumes, network, routes, constraints, package name, docs)
