@@ -28,6 +28,7 @@ class Config:
     neo4j_user: str
     neo4j_password: str
     kong_proxy_url: str
+    audio_output_dir: str
 
     def __init__(self) -> None:
         self.qdrant_url = _require("QDRANT_URL")
@@ -35,3 +36,6 @@ class Config:
         self.neo4j_user = _require("NEO4J_USER")
         self.neo4j_password = _require("NEO4J_PASSWORD")
         self.kong_proxy_url = _require("KONG_PROXY_URL")
+        self.audio_output_dir = _require("AUDIO_OUTPUT_DIR")
+        # Create audio output directory if it doesn't exist (Docker volume may not pre-create)
+        os.makedirs(self.audio_output_dir, exist_ok=True)

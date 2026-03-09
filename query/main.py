@@ -15,10 +15,13 @@ from fastapi import FastAPI, HTTPException
 from neo4j import AsyncGraphDatabase
 from qdrant_client import QdrantClient
 
+from audio import AudioGenerator
 from config import Config
 from graph import GraphRetriever
 from hybrid import merge_and_rerank
 from models import (
+    AudioOverviewRequest,
+    AudioOverviewResponse,
     Citation,
     CollectionsResponse,
     NotebookStats,
@@ -38,6 +41,11 @@ _graph = GraphRetriever(
     neo4j_uri=_config.neo4j_uri,
     neo4j_user=_config.neo4j_user,
     neo4j_password=_config.neo4j_password,
+)
+_audio = AudioGenerator(
+    kong_proxy_url=_config.kong_proxy_url,
+    qdrant_url=_config.qdrant_url,
+    audio_output_dir=_config.audio_output_dir,
 )
 
 _NOTEBOOKS = ("kong", "personal", "music")
@@ -299,3 +307,26 @@ async def add_relationship(request: RelationshipRequest) -> RelationshipResponse
         relationship=request.relationship,
         to_concept=request.to_concept.lower(),
     )
+
+
+@app.post("/audio-overview", response_model=AudioOverviewResponse)
+async def audio_overview(request: AudioOverviewRequest) -> AudioOverviewResponse:
+    """Generate a podcast-style audio overview for a topic in a notebook.
+
+    Retrieves top-K chunks from Qdrant, generates a grounded host+guest dialogue
+    script via Kong /plaudelm/chat, then synthesizes a WAV file using pyttsx3.
+
+    Args:
+        request: AudioOverviewRequest with notebook and topic.
+
+    Returns:
+        AudioOverviewResponse with script, audio_path (absolute path to WAV), and
+        duration_seconds.
+
+    Raises:
+        HTTPException 404: If no chunks exist for the topic in the notebook.
+        HTTPException 422: If request validation fails (handled by FastAPI).
+        HTTPException 502: If Kong/LLM call fails.
+        HTTPException 500: If TTS synthesis fails.
+    """
+    return await _audio.generate(notebook=request.notebook, topic=request.topic)

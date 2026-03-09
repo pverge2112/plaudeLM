@@ -271,6 +271,8 @@ TEST_NEO4J_URI=bolt://localhost:7687
 ## Active Technologies
 - TypeScript 5.x, Node.js 20 LTS + `@modelcontextprotocol/sdk` (official MCP SDK), `zod` (schema validation), `neo4j-driver` (async Neo4j client), `@qdrant/js-client-rest` (Qdrant REST client), `node-fetch` / native `fetch` (FastAPI HTTP client) (001-mcp-server)
 - N/A (server is stateless — Qdrant and Neo4j are owned by other services) (001-mcp-server)
+- Python 3.11+ + FastAPI, Pydantic v2, httpx, qdrant-client, pyttsx3, espeak-ng (system) (010-audio-overview)
+- Docker named volume `audio_data` mounted at `AUDIO_OUTPUT_DIR` (env var) (010-audio-overview)
 
 ## Recent Changes
 - 001-mcp-server: Added TypeScript 5.x, Node.js 20 LTS + `@modelcontextprotocol/sdk` (official MCP SDK), `zod` (schema validation), `neo4j-driver` (async Neo4j client), `@qdrant/js-client-rest` (Qdrant REST client), `node-fetch` / native `fetch` (FastAPI HTTP client)

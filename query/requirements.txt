@@ -9,3 +9,7 @@ neo4j>=5.18
 
 # HTTP client (all LLM calls via httpx)
 httpx>=0.27
+
+# TTS synthesis — local CPU-only audio generation (Spec #7)
+# requires espeak-ng system package (installed via Dockerfile)
+pyttsx3>=2.90

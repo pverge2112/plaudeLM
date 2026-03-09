@@ -2,6 +2,12 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Install system packages required for TTS (espeak-ng) — Spec #7
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    espeak-ng \
+    libespeak-ng1 \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install dependencies first (layer cache)
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt

@@ -66,3 +66,29 @@ class RelationshipResponse(BaseModel):
     from_concept: str
     relationship: str
     to_concept: str
+
+
+# ---------------------------------------------------------------------------
+# Audio Overview — Spec #7
+# Schema derived from MCP Zod source of truth in mcp/src/tools/audio.ts
+# (Article IV.6 — schema-first)
+# ---------------------------------------------------------------------------
+
+
+class AudioOverviewRequest(BaseModel):
+    notebook: Notebook = Field(..., description="Notebook to retrieve content from.")
+    topic: str = Field(..., min_length=1, description="Topic for the podcast overview.")
+
+
+class AudioOverviewResponse(BaseModel):
+    script: str = Field(
+        ...,
+        min_length=200,
+        description="Podcast script (host + guest dialogue, ≥ 200 chars).",
+    )
+    audio_path: str = Field(
+        ..., min_length=1, description="Absolute path to generated WAV file."
+    )
+    duration_seconds: float = Field(
+        ..., gt=0, description="Duration of the audio file in seconds."
+    )
